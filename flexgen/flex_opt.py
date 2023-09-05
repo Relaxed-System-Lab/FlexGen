@@ -1,6 +1,6 @@
 """
 Usage:
-python3 -m flexgen.flex_opt --model facebook/opt-1.3b --gpu-batch-size 32 --percent 100 0 100 0 100 0
+python -m flexgen.flex_opt --model facebook/opt-125m --gpu-batch-size 32 --percent 10 20 100 0 100 0
 """
 
 import argparse
