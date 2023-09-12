@@ -9,7 +9,7 @@ prompts = [
     'How is Huawei Mate 60 Pro?'
 ] * 4
 
-prompt_len = max(max([len(p) for p in prompts]), 16)
+prompt_len = 20
 
 inputs = tokenizer(prompts, padding="max_length", max_length=prompt_len, return_tensors="pt")
 
