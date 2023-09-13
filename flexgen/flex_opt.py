@@ -1,6 +1,6 @@
 """
 Usage:
-python -m flexgen.flex_opt --model facebook/opt-125m --gpu-batch-size 32 --percent 10 20 100 0 100 0
+python3 -m flexgen.flex_opt --model facebook/opt-125m --gpu-batch-size 32 --percent 10 20 100 0 100 0
 """
 
 import argparse
@@ -586,13 +586,14 @@ class OptLM:
                  path: str,
                  policy: Policy):
         if isinstance(config, str):
-            config = get_opt_config(config)
-        self.config = config
-        self.env = env
+            config = get_opt_config(config) 
+        self.config = config # OPT Hyperparameters
+        self.env = env # ?
         self.path = path
         self.policy = policy
         self.num_gpu_batches = policy.num_gpu_batches
 
+        # only abstracted OPT model structure, not allocated memory yet
         layers = []
         layers.append(InputEmbed(self.config, self.env, self.policy))
         for i in range(self.config.num_hidden_layers):
@@ -605,6 +606,7 @@ class OptLM:
         self.layers = layers
         self.num_layers = len(layers)
 
+        # act home
         if self.policy.act_gpu_percent == 100:
             self.act_home = self.env.gpu
         elif self.policy.act_cpu_percent == 100:
@@ -613,11 +615,6 @@ class OptLM:
             self.act_home = self.env.disk
         else:
             raise NotImplementedError()
-
-        # CUDA streams
-        self.load_weight_stream = torch.cuda.Stream()
-        self.load_cache_stream = torch.cuda.Stream()
-        self.store_cache_stream = torch.cuda.Stream()
 
         # Intermediate tensors
         # The following buffers store values used
@@ -629,12 +626,18 @@ class OptLM:
         self.cache_read_buf = array_2d(num_layers, num_gpu_batches, ValueHolder)
         self.cache_write_buf = array_2d(num_layers, num_gpu_batches, ValueHolder)
         # weight[j]
+        self.weight_home = array_1d(num_layers, ValueHolder)
         self.weight_read_buf = array_1d(num_layers, ValueHolder)
         # attention_mask[k]
         self.attention_mask = array_1d(num_gpu_batches, ValueHolder)
 
+        # CUDA streams
+        self.load_weight_stream = torch.cuda.Stream()
+        self.load_cache_stream = torch.cuda.Stream()
+        self.store_cache_stream = torch.cuda.Stream()
+
         self.task = None
-        self.init_all_weights()
+        self.init_all_weights() # init all layers
 
     def set_task(self, task):
         self.task = task
@@ -795,7 +798,6 @@ class OptLM:
         torch.cuda.synchronize()
 
     def init_all_weights(self):
-        self.weight_home = array_1d(self.num_layers, ValueHolder)
         for j in range(self.num_layers):
             self.init_weight(j)
 
@@ -1273,12 +1275,12 @@ def run_flexgen(args):
 
 
 def add_parser_arguments(parser):
-    parser.add_argument("--model", type=str, default="facebook/opt-6.7b",
+    parser.add_argument("--model", type=str, default="facebook/opt-125m",
         help="The model name.")
-    parser.add_argument("--path", type=str, default="~/opt_weights",
+    parser.add_argument("--path", type=str, default="./opt_weights",
         help="The path to the model weights. If there are no cached weights, "
              "FlexGen will automatically download them from HuggingFace.")
-    parser.add_argument("--offload-dir", type=str, default="~/flexgen_offload_dir",
+    parser.add_argument("--offload-dir", type=str, default="./flexgen_offload_dir",
         help="The directory to offload tensors. ")
     parser.add_argument("--prompt-len", type=int, default=512)
     parser.add_argument("--gen-len", type=int, default=32)
@@ -1289,7 +1291,7 @@ def add_parser_arguments(parser):
     parser.add_argument("--gpu-batch-size", type=int, default=4)
     parser.add_argument("--num-gpu-batches", type=int, default=1)
     parser.add_argument("--percent", nargs="+", type=int,
-        default=[100, 0, 100, 0, 100, 0],
+        default=[0, 100, 0, 100, 0, 100],
         help="Six numbers. They are "
          "the percentage of weight on GPU, "
          "the percentage of weight on CPU, "
