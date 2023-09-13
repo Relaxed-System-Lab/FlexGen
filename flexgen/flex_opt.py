@@ -304,7 +304,7 @@ class SelfAttention:
             ((h,), dtype, path + "_layer_norm.bias"),
         ]
         weights = init_weight_list(weight_specs, self.policy, self.env)
-        weight_home.store(weights)
+        weight_home.store(weights) # home1 = weight list
 
     def load_weight(self, weight_home, weight_read_buf, k):
         w_q, b_q, w_k, b_k, w_v, b_v, w_out, b_out, w_ln, b_ln = weight_home.val
@@ -548,7 +548,7 @@ class TransformerLayer:
         home1, home2 = ValueHolder(), ValueHolder()
         self.attention.init_weight(home1, path)
         self.mlp.init_weight(home2, path)
-        weight_home.store((home1, home2))
+        weight_home.store((home1, home2)) # weight_home[j] = (home1, home2)
 
     def load_weight(self, weight_home, weight_read_buf, k):
         read_buf1, read_buf2 = ValueHolder(), ValueHolder()

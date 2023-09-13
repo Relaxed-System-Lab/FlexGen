@@ -1,4 +1,5 @@
 io_cache_dir
+opt_weights
 
 # Mac system files
 .DS_store
