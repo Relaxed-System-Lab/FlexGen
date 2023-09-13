@@ -112,7 +112,7 @@ def init_weight_list(weight_specs, policy, env):
             weight = home.allocate(shape, dtype, pin_memory=pin_memory)
 
             if DUMMY_WEIGHT not in filename:
-                weight.load_from_np_file(weight_specs[i][2])
+                weight.load_from_np_file(weight_specs[i][2]) # load from tensor npy file path
             else:
                 weight.load_from_np(np.ones(shape, dtype))
                 #weight.load_from_np(np.random.rand(*shape).astype(dtype))
@@ -548,7 +548,7 @@ class TransformerLayer:
         home1, home2 = ValueHolder(), ValueHolder()
         self.attention.init_weight(home1, path)
         self.mlp.init_weight(home2, path)
-        weight_home.store((home1, home2)) # weight_home[j] = (home1, home2)
+        weight_home.store((home1, home2)) # weight_home[j] = (home1, home2) # all tensors used by SA and MLP
 
     def load_weight(self, weight_home, weight_read_buf, k):
         read_buf1, read_buf2 = ValueHolder(), ValueHolder()
@@ -645,13 +645,14 @@ class OptLM:
             l.set_task(task)
 
     def init_weight(self, j):
-        expanded_path = os.path.abspath(os.path.expanduser(
+        model_path = os.path.abspath(os.path.expanduser(
             os.path.join(self.path, f"{self.config.name}-np")))
-        check_path = os.path.join(expanded_path, "decoder.embed_positions.weight")
-        if not os.path.exists(check_path) and DUMMY_WEIGHT not in check_path:
+        
+        test_path = os.path.join(model_path, "decoder.embed_positions.weight")
+        if not os.path.exists(test_path) and DUMMY_WEIGHT not in test_path:
             download_opt_weights(self.config.name, self.path)
 
-        self.layers[j].init_weight(self.weight_home[j], expanded_path)
+        self.layers[j].init_weight(self.weight_home[j], model_path)
 
     def load_weight(self, i, j, k, overlap=True):
         # Handle corner cases
