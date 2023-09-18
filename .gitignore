@@ -1,6 +1,7 @@
 io_cache_dir
 opt_weights
 test/model_weights
+*.dat
 
 # Mac system files
 .DS_store
