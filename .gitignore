@@ -1,6 +1,7 @@
 io_cache_dir
 opt_weights
 test/model_weights
+test/offload_folder
 *.dat
 
 # Mac system files
