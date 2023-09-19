@@ -859,6 +859,13 @@
       5120
     ]
   },
+  "model.decoder.layers.15.self_attn.out_proj.weight": {
+    "dtype": "float16",
+    "shape": [
+      5120,
+      5120
+    ]
+  },
   "model.decoder.layers.15.self_attn.out_proj.bias": {
     "dtype": "float16",
     "shape": [
@@ -968,6 +975,13 @@
   "model.decoder.layers.16.final_layer_norm.bias": {
     "dtype": "float16",
     "shape": [
+      5120
+    ]
+  },
+  "model.decoder.layers.17.self_attn.out_proj.weight": {
+    "dtype": "float16",
+    "shape": [
+      5120,
       5120
     ]
   },
@@ -1083,6 +1097,13 @@
       5120
     ]
   },
+  "model.decoder.layers.19.self_attn.out_proj.weight": {
+    "dtype": "float16",
+    "shape": [
+      5120,
+      5120
+    ]
+  },
   "model.decoder.layers.19.self_attn.out_proj.bias": {
     "dtype": "float16",
     "shape": [
@@ -1192,6 +1213,13 @@
   "model.decoder.layers.20.final_layer_norm.bias": {
     "dtype": "float16",
     "shape": [
+      5120
+    ]
+  },
+  "model.decoder.layers.21.self_attn.out_proj.weight": {
+    "dtype": "float16",
+    "shape": [
+      5120,
       5120
     ]
   },
@@ -1307,6 +1335,13 @@
       5120
     ]
   },
+  "model.decoder.layers.23.self_attn.out_proj.weight": {
+    "dtype": "float16",
+    "shape": [
+      5120,
+      5120
+    ]
+  },
   "model.decoder.layers.23.self_attn.out_proj.bias": {
     "dtype": "float16",
     "shape": [
@@ -1416,6 +1451,13 @@
   "model.decoder.layers.24.final_layer_norm.bias": {
     "dtype": "float16",
     "shape": [
+      5120
+    ]
+  },
+  "model.decoder.layers.25.self_attn.out_proj.weight": {
+    "dtype": "float16",
+    "shape": [
+      5120,
       5120
     ]
   },
@@ -1531,6 +1573,13 @@
       5120
     ]
   },
+  "model.decoder.layers.27.self_attn.out_proj.weight": {
+    "dtype": "float16",
+    "shape": [
+      5120,
+      5120
+    ]
+  },
   "model.decoder.layers.27.self_attn.out_proj.bias": {
     "dtype": "float16",
     "shape": [
@@ -1640,6 +1689,13 @@
   "model.decoder.layers.28.final_layer_norm.bias": {
     "dtype": "float16",
     "shape": [
+      5120
+    ]
+  },
+  "model.decoder.layers.29.self_attn.out_proj.weight": {
+    "dtype": "float16",
+    "shape": [
+      5120,
       5120
     ]
   },
@@ -1755,6 +1811,13 @@
       5120
     ]
   },
+  "model.decoder.layers.31.self_attn.out_proj.weight": {
+    "dtype": "float16",
+    "shape": [
+      5120,
+      5120
+    ]
+  },
   "model.decoder.layers.31.self_attn.out_proj.bias": {
     "dtype": "float16",
     "shape": [
@@ -1864,6 +1927,13 @@
   "model.decoder.layers.32.final_layer_norm.bias": {
     "dtype": "float16",
     "shape": [
+      5120
+    ]
+  },
+  "model.decoder.layers.33.self_attn.out_proj.weight": {
+    "dtype": "float16",
+    "shape": [
+      5120,
       5120
     ]
   },
@@ -1979,6 +2049,13 @@
       5120
     ]
   },
+  "model.decoder.layers.35.self_attn.out_proj.weight": {
+    "dtype": "float16",
+    "shape": [
+      5120,
+      5120
+    ]
+  },
   "model.decoder.layers.35.self_attn.out_proj.bias": {
     "dtype": "float16",
     "shape": [
@@ -2091,6 +2168,13 @@
       5120
     ]
   },
+  "model.decoder.layers.37.self_attn.out_proj.weight": {
+    "dtype": "float16",
+    "shape": [
+      5120,
+      5120
+    ]
+  },
   "model.decoder.layers.37.self_attn.out_proj.bias": {
     "dtype": "float16",
     "shape": [
@@ -2200,6 +2284,13 @@
   "model.decoder.layers.38.final_layer_norm.bias": {
     "dtype": "float16",
     "shape": [
+      5120
+    ]
+  },
+  "model.decoder.layers.39.self_attn.out_proj.weight": {
+    "dtype": "float16",
+    "shape": [
+      5120,
       5120
     ]
   },

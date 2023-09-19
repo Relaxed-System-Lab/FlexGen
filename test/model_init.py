@@ -1,5 +1,4 @@
 import logging
-
 logging.basicConfig(
     style='{',
     format='{asctime} [{filename}:{lineno} in {funcName}] {levelname} - {message}',
@@ -10,14 +9,13 @@ logging.basicConfig(
     level=logging.INFO
 )
 logging.info('Importing...')
-
+from dataclasses import dataclass
 import numpy as np
 import torch
 from torch.nn import Module, ModuleList
 from transformers import PreTrainedModel
 from transformers import AutoModelForCausalLM, AutoConfig
 from accelerate import load_checkpoint_and_dispatch, init_empty_weights
-
 logging.info('Done!')
 
 checkpoint = "facebook/opt-13b"
@@ -27,7 +25,6 @@ config = AutoConfig.from_pretrained(checkpoint)
 with init_empty_weights():
     model = AutoModelForCausalLM.from_config(config)
 
-from dataclasses import dataclass
 
 @dataclass(frozen=True)
 class Policy:
@@ -74,7 +71,7 @@ policy = Policy(
 )
 
 def get_policy_weight_map(lm_model: PreTrainedModel, policy: Policy):
-    # weight: device
+    """{module_name: device}"""
     assert lm_model.device == torch.device('meta')
 
     def get_layers_dict(lm_model: Module, prefix: str='') -> dict:
@@ -90,10 +87,8 @@ def get_policy_weight_map(lm_model: PreTrainedModel, policy: Policy):
             else:
                 layers_dict.update(get_layers_dict(module, prefix+name+'.'))
         return layers_dict
-    
     layers_dict = get_layers_dict(lm_model)
 
-    weight_assign_dict = {}
     
     def get_choice(cur_percent, percents, choices):
         percents = np.cumsum(percents)
@@ -103,7 +98,8 @@ def get_policy_weight_map(lm_model: PreTrainedModel, policy: Policy):
             if cur_percent < percents[i]:
                 return choices[i]
         return choices[-1]
-    
+    weight_assign_dict = {}
+
     choices = ['cuda', 'cpu', 'disk']
     percents_target = [policy.weights_gpu_percent, policy.weights_cpu_percent, policy.weights_disk_percent]
     percents_target = np.array(percents_target)
@@ -117,11 +113,11 @@ def get_policy_weight_map(lm_model: PreTrainedModel, policy: Policy):
         param_sizes = [np.prod(para.shape) for _, para in layer_module.named_parameters()]
         param_sizes_cumsum = np.cumsum(param_sizes)
         size_layer = param_sizes_cumsum[-1]
-        
+
         size_layer_devices = {device: 0 for device in choices}
         for i, (param_name, param) in enumerate(layer_module.named_parameters()):
-            current_percent = (param_sizes_cumsum[i] - param_sizes[i] / 2) / param_sizes_cumsum[-1]
-            device = get_choice(current_percent, percents_future, choices)
+            param_mid = (param_sizes_cumsum[i] - param_sizes[i] / 2) / param_sizes_cumsum[-1]
+            device = get_choice(param_mid, percents_future, choices)
 
             weight_assign_dict[layer_name+'.'+param_name] = {
                 'shape':  param.shape,
@@ -129,15 +125,13 @@ def get_policy_weight_map(lm_model: PreTrainedModel, policy: Policy):
             }
             size_layer_devices[device] += param_sizes[i]
 
-        percents_layer = np.array([size_layer_devices[device] * 1. for device in choices])
-        percents_layer /= percents_layer.sum()
+        percents_layer = np.array([size_layer_devices[device] * 1. for device in choices]) / size_layer
         
         # update past & future
         percents_past = (percents_past * size_past + percents_layer * size_layer) / (size_past + size_layer)      
         size_past += param_sizes_cumsum[-1]
         size_future -= param_sizes_cumsum[-1]
         percents_future = (size_total * percents_target - size_past * percents_past) / size_future if size_future > 0 else 0
-
 
     return weight_assign_dict
 
@@ -146,14 +140,11 @@ weight_map = get_policy_weight_map(model, policy)
 mem_g = sum([np.prod(v['shape']) for k, v in weight_map.items() if 'cuda' in v['assigned_device']]) * 2 / (2 ** 30)
 mem_c = sum([np.prod(v['shape']) for k, v in weight_map.items() if v['assigned_device'] == 'cpu']) * 2 / (2 ** 30)
 mem_d = sum([np.prod(v['shape']) for k, v in weight_map.items() if v['assigned_device'] == 'disk']) * 2 / (2 ** 30)
-
-
 logging.info(f'Loading weights of CausalLM: {checkpoint}, GPU Mem: {mem_g:.2f} GiB, CPU Mem: {mem_c:.2f} GiB, Disk Mem: {mem_d:.2f} Gib')
 
 device_map = {k:v['assigned_device'] for k, v in weight_map.items()}
+model = AutoModelForCausalLM.from_pretrained(
+    checkpoint, device_map=device_map, offload_folder="offload", torch_dtype=torch.float16, offload_state_dict=True
+)
 
-# model = AutoModelForCausalLM.from_pretrained(
-#     checkpoint, device_map=device_map, offload_folder="offload", torch_dtype=torch.float16, offload_state_dict=True
-# )
-
-# logging.info(f'Model initialized!')
+logging.info(f'Model initialized!')
