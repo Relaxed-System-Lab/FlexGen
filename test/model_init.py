@@ -73,12 +73,12 @@ policy = Policy(
     pin_weight=True,
 )
 
-# policy_device_map
-
 def get_policy_weight_map(lm_model: PreTrainedModel, policy: Policy):
+    # weight: device
     assert lm_model.device == torch.device('meta')
 
     def get_layers_dict(lm_model: Module, prefix: str='') -> dict:
+        # {layer_name : layer_module ('meta')}
         layers_dict = {}
         for name, module in lm_model.named_children():
             if len(list(module.named_children())) == 0:
@@ -104,35 +104,56 @@ def get_policy_weight_map(lm_model: PreTrainedModel, policy: Policy):
                 return choices[i]
         return choices[-1]
     
-    percents = [policy.weights_gpu_percent, policy.weights_cpu_percent, policy.weights_disk_percent]
     choices = ['cuda', 'cpu', 'disk']
+    percents_target = [policy.weights_gpu_percent, policy.weights_cpu_percent, policy.weights_disk_percent]
+    percents_target = np.array(percents_target)
     
+    size_total = sum([p.numel() for _, p in model.named_parameters()])
+    size_past, size_future = 0, size_total
+    percents_past, percents_future = 0 * percents_target, percents_target  
+
     for layer_name, layer_module in layers_dict.items():
+        # current layer
+        param_sizes = [np.prod(para.shape) for _, para in layer_module.named_parameters()]
+        param_sizes_cumsum = np.cumsum(param_sizes)
+        size_layer = param_sizes_cumsum[-1]
         
-        sizes = [np.prod(para.shape) for _, para in layer_module.named_parameters()]
-        sizes_cumsum = np.cumsum(sizes)
-        logging.debug(f"<compute_weight_assignment> block: {layer_name}: sizes: {sizes}, sizes_cumsum: {sizes_cumsum}")
+        size_layer_devices = {device: 0 for device in choices}
+        for i, (param_name, param) in enumerate(layer_module.named_parameters()):
+            current_percent = (param_sizes_cumsum[i] - param_sizes[i] / 2) / param_sizes_cumsum[-1]
+            device = get_choice(current_percent, percents_future, choices)
+
+            weight_assign_dict[layer_name+'.'+param_name] = {
+                'shape':  param.shape,
+                'assigned_device': device
+            }
+            size_layer_devices[device] += param_sizes[i]
+
+        percents_layer = np.array([size_layer_devices[device] * 1. for device in choices])
+        percents_layer /= percents_layer.sum()
         
-        for i, (para_name, para) in enumerate(layer_module.named_parameters()):
-            logging.debug(f"<compute_weight_assignment> para: {para_name}: {para.shape}")
-            current_percent = (sizes_cumsum[i] - sizes[i] / 2) / sizes_cumsum[-1]
-            weight_assign_dict[layer_name+'.'+para_name] = {'shape':  para.shape,
-                'assigned_device': get_choice(current_percent, percents, choices)}
+        # update past & future
+        percents_past = (percents_past * size_past + percents_layer * size_layer) / (size_past + size_layer)      
+        size_past += param_sizes_cumsum[-1]
+        size_future -= param_sizes_cumsum[-1]
+        percents_future = (size_total * percents_target - size_past * percents_past) / size_future if size_future > 0 else 0
+
 
     return weight_assign_dict
 
 weight_map = get_policy_weight_map(model, policy)
 
+mem_g = sum([np.prod(v['shape']) for k, v in weight_map.items() if 'cuda' in v['assigned_device']]) * 2 / (2 ** 30)
 mem_c = sum([np.prod(v['shape']) for k, v in weight_map.items() if v['assigned_device'] == 'cpu']) * 2 / (2 ** 30)
 mem_d = sum([np.prod(v['shape']) for k, v in weight_map.items() if v['assigned_device'] == 'disk']) * 2 / (2 ** 30)
 
 
-logging.info(f'Loading weights of CausalLM: {checkpoint}, CPU Mem: {mem_c:.2f} GiB, Disk Mem: {mem_d:.2f} Gib')
+logging.info(f'Loading weights of CausalLM: {checkpoint}, GPU Mem: {mem_g:.2f} GiB, CPU Mem: {mem_c:.2f} GiB, Disk Mem: {mem_d:.2f} Gib')
 
 device_map = {k:v['assigned_device'] for k, v in weight_map.items()}
 
-model = AutoModelForCausalLM.from_pretrained(
-    checkpoint, device_map=device_map, offload_folder="offload", torch_dtype=torch.float16, offload_state_dict=True
-)
+# model = AutoModelForCausalLM.from_pretrained(
+#     checkpoint, device_map=device_map, offload_folder="offload", torch_dtype=torch.float16, offload_state_dict=True
+# )
 
-logging.info(f'Model initialized!')
+# logging.info(f'Model initialized!')
