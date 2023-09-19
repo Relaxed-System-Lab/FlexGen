@@ -70,6 +70,7 @@ policy = Policy(
     pin_weight=True,
 )
 
+# TODO: named_buffers?
 def get_policy_weight_map(lm_model: PreTrainedModel, policy: Policy):
     """{module_name: device}"""
     assert lm_model.device == torch.device('meta')
