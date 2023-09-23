@@ -9,22 +9,34 @@ logging.basicConfig(
     level=logging.INFO
 )
 logging.info('Importing...')
+import os
 from dataclasses import dataclass
 import numpy as np
 import torch
 from torch.nn import Module, ModuleList
 from transformers import PreTrainedModel
 from transformers import AutoModelForCausalLM, AutoConfig
-from accelerate import load_checkpoint_and_dispatch, init_empty_weights
+from accelerate import init_empty_weights
+from accelerate.utils import find_tied_parameters
 logging.info('Done!')
 
-checkpoint = "facebook/opt-13b"
+checkpoint = "facebook/opt-13b" # 1.3b 6.7b 13b 30b 66b 
 
 logging.info(f'Initializing CausalLM: \'{checkpoint}\'')
 config = AutoConfig.from_pretrained(checkpoint)
 with init_empty_weights():
     model = AutoModelForCausalLM.from_config(config)
+    
+# model.base_model_prefix # -> 'model'
 
+model.tie_weights()
+tied_params = find_tied_parameters(model)
+# tied_params
+
+class AttrDict(dict):
+    __slots__ = () 
+    __getattr__ = dict.__getitem__
+    __setattr__ = dict.__setitem__
 
 @dataclass(frozen=True)
 class Policy:
@@ -70,82 +82,146 @@ policy = Policy(
     pin_weight=True,
 )
 
-# TODO: named_buffers?
-def get_policy_weight_map(lm_model: PreTrainedModel, policy: Policy):
+def get_layers_dict(lm_model: Module, prefix: str='') -> dict:
+    # return a dict of {layer_name : layer_module ('meta')} with only leaf nodes & transformer layers
+    layers_dict = {}
+    for name, module in lm_model.named_children():
+        # leaf nodes
+        if len(list(module.named_children())) == 0:
+            layers_dict[prefix+name] = module
+        # ModuleList: transformer  
+        elif isinstance(module, ModuleList):
+            for block_name, block_module in module.named_children():
+                layers_dict[prefix+name+'.'+block_name] = block_module
+        else:
+            layers_dict.update(get_layers_dict(module, prefix+name+'.'))
+    return layers_dict
+
+def named_module_tensors(module: Module, include_buffers: bool = True, recurse: bool = True):
+    for named_parameter in module.named_parameters(recurse=recurse):
+        yield named_parameter
+
+    if include_buffers:
+        for named_buffer in module.named_buffers(recurse=recurse):
+            yield named_buffer
+
+def get_device(cur_percent, percents, choices):
+    # choose a device (gpu / cpu / disk) for a weight tensor by its percent of size
+    percents = np.cumsum(percents)
+    assert np.abs(percents[-1] - 1.0) < 1e-5, f'{percents}'
+
+    for i in range(len(percents)):
+        if cur_percent < percents[i]:
+            return choices[i]
+    return choices[-1]
+
+def get_policy_weight_map(model: PreTrainedModel, policy: Policy):
     """{module_name: device}"""
-    assert lm_model.device == torch.device('meta')
-
-    def get_layers_dict(lm_model: Module, prefix: str='') -> dict:
-        # {layer_name : layer_module ('meta')}
-        layers_dict = {}
-        for name, module in lm_model.named_children():
-            if len(list(module.named_children())) == 0:
-                layers_dict[prefix+name] = module
-            # Assume only transformer blocks are stored in ModuleList
-            elif isinstance(module, ModuleList):
-                for block_name, block_module in module.named_children():
-                    layers_dict[prefix+name+'.'+block_name] = block_module
-            else:
-                layers_dict.update(get_layers_dict(module, prefix+name+'.'))
-        return layers_dict
-    layers_dict = get_layers_dict(lm_model)
-
+    assert model.device == torch.device('meta'), 'model is not on device meta.'
     
-    def get_choice(cur_percent, percents, choices):
-        percents = np.cumsum(percents)
-        assert np.abs(percents[-1] - 1.0) < 1e-5
+    # to ensure the tied params are allocated to the same device in the weight_map
+    model.tie_weights()
+    tied_params = find_tied_parameters(model)
 
-        for i in range(len(percents)):
-            if cur_percent < percents[i]:
-                return choices[i]
-        return choices[-1]
+    # layers to be scheduled
+    layers_dict = get_layers_dict(model)
+
+    # device assignment for each tensor in the model
     weight_assign_dict = {}
-
-    choices = ['cuda', 'cpu', 'disk']
-    percents_target = [policy.weights_gpu_percent, policy.weights_cpu_percent, policy.weights_disk_percent]
-    percents_target = np.array(percents_target)
+    devices = ['cuda', 'cpu', 'disk']
+    percents_target = np.array([
+        policy.weights_gpu_percent, 
+        policy.weights_cpu_percent, 
+        policy.weights_disk_percent
+    ])
     
-    size_total = sum([p.numel() for _, p in model.named_parameters()])
-    size_past, size_future = 0, size_total
-    percents_past, percents_future = 0 * percents_target, percents_target  
+    # model size (parameters + buffers), here we do not repeatly sum the tied paramters 
+    size_total = sum(np.prod(tensor.shape) for _, tensor in named_module_tensors(model))
+    size_done, size_todo = 0, size_total
+    percents_done, percents_todo = 0 * percents_target, percents_target  
 
     for layer_name, layer_module in layers_dict.items():
         # current layer
-        param_sizes = [np.prod(para.shape) for _, para in layer_module.named_parameters()]
-        param_sizes_cumsum = np.cumsum(param_sizes)
-        size_layer = param_sizes_cumsum[-1]
+        tensor_sizes = [np.prod(tensor.shape) for _, tensor in named_module_tensors(layer_module)]
+        tensor_sizes_cumsum = np.cumsum(tensor_sizes)
 
-        size_layer_devices = {device: 0 for device in choices}
-        for i, (param_name, param) in enumerate(layer_module.named_parameters()):
-            param_mid = (param_sizes_cumsum[i] - param_sizes[i] / 2) / param_sizes_cumsum[-1]
-            device = get_choice(param_mid, percents_future, choices)
+        device_allo_size_dict = {device: 0 for device in devices} # to balance the percents
+        for i, (tensor_name, tensor) in enumerate(named_module_tensors(layer_module)):
+            abs_tensor_name = layer_name + '.' + tensor_name
 
-            weight_assign_dict[layer_name+'.'+param_name] = {
-                'shape':  param.shape,
-                'assigned_device': device
-            }
-            size_layer_devices[device] += param_sizes[i]
+            def find_processed_tied(abs_tensor_name, tied_params, weight_assign_dict):
+                # find the processed parameter (in weight_assign_dict) of the tied parameters.
+                for tp in tied_params:
+                    if abs_tensor_name in tp:
+                        for p in tp:
+                            if p in weight_assign_dict:
+                                return p, tuple(tp)
+                return None
+            
+            processed_tied = find_processed_tied(abs_tensor_name, tied_params, weight_assign_dict) 
+            if processed_tied: # this tensor is tied and processed.
+                p, tp = processed_tied
+                weight_assign_dict[abs_tensor_name] = {
+                    # 'shape':  tensor.shape,
+                    'assigned_device': weight_assign_dict[p]['assigned_device'],
+                    'tied': tp
+                }
+            else:
+                mid_percent = (tensor_sizes_cumsum[i] - tensor_sizes[i] / 2) / tensor_sizes_cumsum[-1] # tensor mid size percent 
+                device = get_device(mid_percent, percents_todo, devices)
+                weight_assign_dict[abs_tensor_name] = {
+                    'shape':  tensor.shape,
+                    'assigned_device': device
+                }
+                
+                device_allo_size_dict[device] += tensor_sizes[i]
 
-        percents_layer = np.array([size_layer_devices[device] * 1. for device in choices]) / size_layer
+        # update percents_todo
+        size_layer = sum(device_allo_size_dict.values())
+        if size_layer > 0:
+            device_allo_percents = np.array([device_allo_size_dict[device] * 1. for device in devices]) / size_layer
+            percents_done = (percents_done * size_done + device_allo_percents * size_layer) / (size_done + size_layer)      
+        size_done += size_layer
+        size_todo -= size_layer
+        if size_todo > 0:
+            percents_todo = (size_total * percents_target - size_done * percents_done) / size_todo 
         
-        # update past & future
-        percents_past = (percents_past * size_past + percents_layer * size_layer) / (size_past + size_layer)      
-        size_past += param_sizes_cumsum[-1]
-        size_future -= param_sizes_cumsum[-1]
-        percents_future = (size_total * percents_target - size_past * percents_past) / size_future if size_future > 0 else 0
+        logging.info(f'{layer_name}, {percents_done}, size_todo: {size_todo}')
 
-    return weight_assign_dict
 
-weight_map = get_policy_weight_map(model, policy)
+    device_map = {k:v['assigned_device'] for k, v in weight_assign_dict.items()}
+    logging.info('device_map is prepared!')
 
-mem_g = sum([np.prod(v['shape']) for k, v in weight_map.items() if 'cuda' in v['assigned_device']]) * 2 / (2 ** 30)
-mem_c = sum([np.prod(v['shape']) for k, v in weight_map.items() if v['assigned_device'] == 'cpu']) * 2 / (2 ** 30)
-mem_d = sum([np.prod(v['shape']) for k, v in weight_map.items() if v['assigned_device'] == 'disk']) * 2 / (2 ** 30)
-logging.info(f'Loading weights of CausalLM: {checkpoint}, GPU Mem: {mem_g:.2f} GiB, CPU Mem: {mem_c:.2f} GiB, Disk Mem: {mem_d:.2f} Gib')
+    mem_g = sum([np.prod(v['shape']) for _, v in weight_assign_dict.items() if 'cuda' in v['assigned_device'] and 'shape' in v]) * 2 / (2 ** 30)
+    mem_c = sum([np.prod(v['shape']) for _, v in weight_assign_dict.items() if v['assigned_device'] == 'cpu' and 'shape' in v]) * 2 / (2 ** 30)
+    mem_d = sum([np.prod(v['shape']) for _, v in weight_assign_dict.items() if v['assigned_device'] == 'disk' and 'shape' in v]) * 2 / (2 ** 30)
+    mem = mem_d + mem_c + mem_g
+    logging.info(f'CausalLM {checkpoint} is to be loaded on: ' 
+                 f'\nGPU Mem {mem_g:.2f} GiB ({mem_g / mem:.2%}), ' 
+                 f'CPU Mem {mem_c:.2f} GiB ({mem_c / mem:.2%}), '
+                 f'Disk Mem {mem_d:.2f} Gib ({mem_d / mem:.2%})')
+    
+    # prepare output
+    output = {
+        'model': model,
+        'tied_params': tied_params,
+        'layers_dict': layers_dict,
+        'weight_assign_dict': weight_assign_dict,
+        'device_map': device_map
+    }
+    output = AttrDict(output)
+    return output
 
-device_map = {k:v['assigned_device'] for k, v in weight_map.items()}
+output = get_policy_weight_map(model, policy)
+
+device_map = output.device_map
+offload_folder = 'offload/' + checkpoint.replace('/', '.')
+
 model = AutoModelForCausalLM.from_pretrained(
-    checkpoint, device_map=device_map, offload_folder="offload", torch_dtype=torch.float16, offload_state_dict=True
+    checkpoint, 
+    device_map=device_map, 
+    offload_folder=offload_folder, 
+    offload_state_dict=True
 )
 
 logging.info(f'Model initialized!')
