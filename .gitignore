@@ -3,6 +3,7 @@ opt_weights
 test/model_weights
 test/offload_folder
 *.dat
+!test/.log
 
 # Mac system files
 .DS_store
