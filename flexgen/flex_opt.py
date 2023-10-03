@@ -606,7 +606,7 @@ class OptLM:
         self.layers = layers
         self.num_layers = len(layers)
 
-        # act home
+        # act home (?)
         if self.policy.act_gpu_percent == 100:
             self.act_home = self.env.gpu
         elif self.policy.act_cpu_percent == 100:
@@ -631,7 +631,7 @@ class OptLM:
         # attention_mask[k]
         self.attention_mask = array_1d(num_gpu_batches, ValueHolder)
 
-        # CUDA streams
+        # CUDA streams, act
         self.load_weight_stream = torch.cuda.Stream()
         self.load_cache_stream = torch.cuda.Stream()
         self.store_cache_stream = torch.cuda.Stream()
