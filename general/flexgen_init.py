@@ -5,19 +5,22 @@ from tqdm import tqdm
 
 import torch 
 from torch.nn import Module, ModuleList
-from transformers import AutoModelForCausalLM, AutoConfig, PreTrainedModel
+from transformers import AutoModelForCausalLM, AutoConfig
 from accelerate import init_empty_weights
+from accelerate.hooks import remove_hook_from_module
 from accelerate.utils import find_tied_parameters, named_module_tensors, set_module_tensor_to_device
 
-from flexgen_utils import logging, Policy, AttrDict, get_device
+from flexgen_utils import logging, Policy, AttrDict
+from flexgen_utils import get_device, get_module_from_name, get_tied_target
+from flexgen_utils import flexgen_load_module_tensor, flexgen_offload_module_tensor
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.INFO)
 
 def policy_init(
     checkpoint: str, 
     policy: Policy, 
-    offload_dir: str = 'flexgen_offload'
+    offload_dir: str = 'offload_dir'
 ) -> AttrDict:
     # return: model, weight_map, layers
 
@@ -29,7 +32,7 @@ def policy_init(
         model = AutoModelForCausalLM.from_config(config)
     model.tie_weights()
     model.eval()
-    logger.info(f'Got empty CausalLM: \'{checkpoint}\' on meta device.')
+    logger.debug(f'Got empty CausalLM: \'{checkpoint}\' on meta device.')
 
     tied_params = find_tied_parameters(model)
 
@@ -37,15 +40,14 @@ def policy_init(
         'empty_model': model,
         'checkpoint': checkpoint,
     })
-
     output = get_policy_weight_map(model_info, policy)
 
     # load model according to policy
     policy_device_map = output.device_map
     flexgen_layers = output.layers_dict
 
+    # download and process to .dat files
     if not check_disk(checkpoint, offload_folder):
-        # download and process to .dat files
         disk_weight_map = {name:'disk' for name in policy_device_map}
         try:
             AutoModelForCausalLM.from_pretrained(
@@ -62,11 +64,10 @@ def policy_init(
         err_msg = 'Mismatch between offload folder and model'
         logger.error(err_msg)
         raise RuntimeError(err_msg)
-    else:
-        logger.info(f'The whole model has been downloaded an processed to offload_folder: \'{offload_folder}\'')
-
+    logger.info(f'The whole model has been downloaded an processed to offload_folder: \'{offload_folder}\'')
 
     # policy init
+    dat_files = [f for f in os.listdir(offload_folder) if f.endswith('.dat')]
     with open(os.path.join(offload_folder, 'index.json'), 'r') as f:
         index = json.load(f) # {name: {dtype, shape}}
 
@@ -74,80 +75,19 @@ def policy_init(
         if device != 'disk':
             flexgen_load_module_tensor(model, tensor_name, device, index, offload_folder, tied_params) 
 
+    remove_hook_from_module(model, recurse=True) # rm hooks
     logger.info('model has been loaded by policy.')   
 
-    layer_names = flexgen_layers.keys()
-    layers = [get_module_from_name(model, layer_name) for layer_name in layer_names]
-
+    layer_names = list(flexgen_layers.keys())
     return AttrDict({
-        'model': model, 
+        'model': model, # no_grad (TODO), eval
         'weight_map': policy_device_map, 
-        'layers': layers,
-        'layer_names': layer_names
+        'layer_names': layer_names,
+        'tied_params': tied_params,
+        'index': index,
+        'offload_folder': offload_folder,
+        'dat_files': dat_files,
     })
-
-def get_tied_target(tensor_name, tied_params, dat_files):
-    # if tensor_name is tied and without a .dat file, if it is not tied, return itself
-    for group in tied_params:
-        if tensor_name in group:
-            for name in group:
-                if name + '.dat' in dat_files:
-                    return name 
-    return tensor_name
-
-
-def get_module_from_name(lm_model, name):
-    splits = name.split('.')
-    module = lm_model
-    for split in splits:
-        if split == '': 
-            continue 
-
-        new_module = getattr(module, split)
-        if new_module is None:
-            raise ValueError(f"{module} has no attribute {split}.")
-        module = new_module
-    return module 
-
-
-def flexgen_load_module_tensor(model, tensor_name, device, index, offload_folder, tied_params):
-    tensor = get_module_from_name(model, tensor_name)
-    if tensor.device == device:
-        return 
-    
-    # else
-    old_tensor_name = tensor_name
-    
-    dat_files = [f for f in os.listdir(offload_folder) if f.endswith('.dat')]
-    tensor_name = get_tied_target(tensor_name, tied_params, dat_files) 
-    metadata = index[tensor_name]
-
-    # copied from accelerate.utils.offload
-    shape = tuple(metadata["shape"])
-    if shape == ():
-        # NumPy memory-mapped arrays can't have 0 dims so it was saved as 1d tensor
-        shape = (1,)
-
-    dtype = metadata["dtype"]
-    if dtype == "bfloat16":
-        # NumPy does not support bfloat16 so this was saved as a int16
-        dtype = "int16"
-    
-    # load .dat file
-    save_path = os.path.join(offload_folder, tensor_name + '.dat')
-
-    # to device 
-    np_memmap = np.memmap(save_path, dtype=dtype, shape=shape, mode='r') 
-    tmp = torch.from_numpy(np_memmap).to(device) 
-    set_module_tensor_to_device(model, old_tensor_name, device, tmp)
-
-
-def flexgen_offload_module_tensor(model, tensor_name, policy_device_map):
-    tensor = get_module_from_name(model, tensor_name)
-    device = policy_device_map[tensor_name]
-    device = device if device != 'disk' else 'meta' 
-    if tensor.device != device:
-        set_module_tensor_to_device(model, tensor_name, device, tensor) # gtoc, ctog
 
 
 def check_disk(checkpoint, offload_folder):
@@ -254,7 +194,7 @@ def get_policy_weight_map(model_info: AttrDict, policy: Policy):
         if size_todo > 0:
             percents_todo = (size_total * percents_target - size_done * percents_done) / size_todo 
         
-        logger.info(f'{layer_name}, {percents_done}, size_todo: {size_todo}')
+        logger.debug(f'{layer_name}, {percents_done}, size_todo: {size_todo}')
 
 
     device_map = {k:v['assigned_device'] for k, v in weight_assign_dict.items()}
@@ -275,7 +215,7 @@ def get_policy_weight_map(model_info: AttrDict, policy: Policy):
         'tied_params': tied_params,
         'layers_dict': layers_dict,
         'weight_assign_dict': weight_assign_dict,
-        'device_map': device_map
+        'device_map': device_map,
     }
     output = AttrDict(output)
     return output
