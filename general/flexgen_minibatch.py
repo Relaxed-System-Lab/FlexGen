@@ -9,20 +9,22 @@ def get_size_info(obj): # recursive
         return {k:get_size_info(v) for k, v in obj.items()}
     elif isinstance(obj, torch.Tensor):
         return obj.size()
-    else:
-        return type(obj)
+    else: # int, bool, None
+        return obj
 
 def get_kth_batch_inputs(inputs, k, gpu_batch_size): # for both args, kwargs
     if isinstance(inputs, tuple): # e.g. args
         return tuple(get_kth_batch_inputs(inp, k, gpu_batch_size) for inp in inputs)
+    elif isinstance(inputs, list): 
+        return list(get_kth_batch_inputs(inp, k, gpu_batch_size) for inp in inputs)
     elif isinstance(inputs, dict): # e.g. kwargs
         return {key:get_kth_batch_inputs(value, k, gpu_batch_size) for key, value in inputs.items()}
     elif isinstance(inputs, torch.Tensor):
         return inputs[k * gpu_batch_size:(k + 1) * gpu_batch_size]
-    elif isinstance(inputs, int) or inputs is None: 
+    else: # None, int, bool
         return inputs
-    else:
-        raise NotImplementedError(f'inputs: {inputs} of type \'{type(inputs)}\' is not implemented.')
+    # else:
+    #     raise NotImplementedError(f'inputs: {inputs} of type \'{type(inputs)}\' is not implemented.')
 
 def concat_outputs(outputs: list): # concat K outputs to one output
     if isinstance(outputs[0], torch.Tensor):
