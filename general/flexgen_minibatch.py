@@ -29,8 +29,8 @@ def get_kth_batch_inputs(inputs, k, gpu_batch_size): # for both args, kwargs
         raise NotImplementedError(f'inputs: {inputs} of type \'{type(inputs)}\' is not implemented.')
 
 def concat_outputs(outputs): # concat K outputs to one output
-    assert len(outputs), 'empty outputs'
-    assert isinstance(outputs[0], (torch.Tensor, tuple)), 'just for types of torch.Tensor or tuple'
+    assert len(outputs), 'empty outputs.'
+    assert isinstance(outputs[0], (torch.Tensor, tuple)), f'Only supports layer output type of torch.Tensor or tuple. However, we get a {type(outputs[0])}.'
     
     if isinstance(outputs[0], torch.Tensor):
         return torch.cat(outputs, dim=0)

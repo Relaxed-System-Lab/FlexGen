@@ -78,9 +78,10 @@ def policy_init(
     remove_hook_from_module(model, recurse=True) # rm hooks
     logger.info('model has been loaded by policy.')   
 
-    layer_names = list(flexgen_layers.keys())
+    layer_names = list(flexgen_layers.keys()) # not ordered
+    
     return AttrDict({
-        'model': model, # no_grad (TODO), eval
+        'model': model, # eval
         'weight_map': policy_device_map, 
         'layer_names': layer_names,
         'tied_params': tied_params,
