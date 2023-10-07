@@ -35,7 +35,7 @@ flexgen/apps/data_wrangle/core
 
 # log files
 *.tsv
-*.log
+# *.log
 *.raw
 
 # tmp scripts

@@ -28,21 +28,23 @@ def get_kth_batch_inputs(inputs, k, gpu_batch_size): # for both args, kwargs
     else:
         raise NotImplementedError(f'inputs: {inputs} of type \'{type(inputs)}\' is not implemented.')
 
-def concat_outputs(outputs: list): # concat K outputs to one output
+def concat_outputs(outputs): # concat K outputs to one output
+    assert len(outputs), 'empty outputs'
+    assert isinstance(outputs[0], (torch.Tensor, tuple)), 'just for types of torch.Tensor or tuple'
+    
     if isinstance(outputs[0], torch.Tensor):
         return torch.cat(outputs, dim=0)
     elif isinstance(outputs[0], tuple):
-        ans = []
-        for elem in zip(*outputs):
-            if isinstance(elem[0], torch.Tensor):
-                ans.append(torch.cat(elem, dim=0))
-            elif isinstance(elem[0], tuple):
-                ans.append(concat_outputs(elem))
-            elif isinstance(elem[0], int): # all the same
-                ans.append(elem[0])
-            else:
-                NotImplementedError(f'outputs concat function of type {type(elem[0])} is not implemented.')
-        return tuple(ans) 
-    else:
-        raise NotImplementedError(f'outputs concat function of type {type(outputs[0])} is not implemented.')
+        def f(outputs):
+            ans = []
+            for elem in zip(*outputs):
+                if isinstance(elem[0], torch.Tensor):
+                    ans.append(torch.cat(elem, dim=0))
+                elif isinstance(elem[0], tuple):
+                    ans.append(f(elem))
+                elif isinstance(elem[0], (int, bool, type(None))): 
+                    ans.append(elem[0])
+            return tuple(ans)
 
+        return f(outputs)
+            
