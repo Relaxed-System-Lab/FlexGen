@@ -2,6 +2,7 @@ import os
 import numpy as np
 import json
 from tqdm import tqdm 
+import contextlib
 
 import torch 
 from torch.nn import Module, ModuleList
@@ -12,10 +13,14 @@ from accelerate.utils import find_tied_parameters, named_module_tensors, set_mod
 
 from flexgen_utils import logging, Policy, AttrDict
 from flexgen_utils import get_device, get_module_from_name, get_tied_target
-from flexgen_utils import flexgen_load_module_tensor, flexgen_offload_module_tensor
+from flexgen_utils import flexgen_load_module_tensor, flexgen_offload_module_tensor, load_layer_weights, offload_layer_weights
+
+from flexgen_test import test_hf_gen 
+from flexgen_forward import test
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
+logger.setLevel(logging.DEBUG)
+# logger.setLevel(logging.INFO)
 
 def policy_init(
     checkpoint: str, 
@@ -80,7 +85,7 @@ def policy_init(
 
     layer_names = list(flexgen_layers.keys()) # not ordered
     
-    return AttrDict({
+    output = AttrDict({
         'model': model, # eval
         'weight_map': policy_device_map, 
         'layer_names': layer_names,
@@ -88,7 +93,19 @@ def policy_init(
         'index': index,
         'offload_folder': offload_folder,
         'dat_files': dat_files,
+        'checkpoint': checkpoint,
     })
+    
+    # get ordered layers by test run
+    call_layer_log = []
+    with test(output, call_layer_log):
+        test_hf_gen(output.checkpoint, output.model, 1,1,1,1, prompts=['0'])
+
+    logger.info(f'layer order: {call_layer_log}')
+    output.layer_names = call_layer_log
+
+    return output
+
 
 
 def check_disk(checkpoint, offload_folder):

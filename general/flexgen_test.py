@@ -2,7 +2,9 @@
 from transformers import AutoTokenizer
 from flexgen_utils import logging
 
-def test_gen(checkpoint, model, gbs, ngb, prompt_len=10, gen_len=30, prompts=None):
+def test_hf_gen(checkpoint, model, gbs, ngb, prompt_len=10, gen_len=30, prompts=None):
+    # test .generate() for huggingface CausalLM models.
+
     if prompts is None: # get default prompts
         prompts = [
             'Who are you? Are you conscious?',
@@ -16,7 +18,7 @@ def test_gen(checkpoint, model, gbs, ngb, prompt_len=10, gen_len=30, prompts=Non
     # Generate
     generate_ids = model.generate(
         inputs.input_ids, 
-        max_length=prompt_len + gen_len,
+        max_length=prompt_len + gen_len, # ?
         # num_beams=2, #
         # num_beam_groups=2, #
         # diversity_penalty=0.1, #
