@@ -13,6 +13,7 @@ def test_hf_gen(checkpoint, model, gbs, ngb, prompt_len=10, gen_len=30, prompts=
         ] 
     prompts = prompts * (gbs * ngb // len(prompts)) + prompts[:(gbs * ngb % len(prompts))]
     tokenizer = AutoTokenizer.from_pretrained(checkpoint)
+    tokenizer.pad_token = tokenizer.eos_token # 
     inputs = tokenizer(prompts, padding="max_length", max_length=prompt_len, return_tensors="pt")
 
     # Generate

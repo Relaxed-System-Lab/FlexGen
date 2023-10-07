@@ -59,7 +59,8 @@ def policy_init(
                 checkpoint, 
                 device_map=disk_weight_map, 
                 offload_folder=offload_folder, 
-                offload_state_dict=True
+                offload_state_dict=True,
+                use_safetensors=False, # download .bin files, for now
             )
         except:
             pass
@@ -117,10 +118,10 @@ def check_disk(checkpoint, offload_folder):
     with init_empty_weights():
         model = AutoModelForCausalLM.from_config(config)
     model.tie_weights()
-    tensor_names = [n for n, _ in named_module_tensors(model, include_buffers=True, recurse=True)]
+    tensor_names = [n for n, _ in named_module_tensors(model, include_buffers=False, recurse=True)]
     dat_file_names = [file[:-4] for file in os.listdir(offload_folder) if file.endswith('.dat')]
-    # logger.info(set(tensor_names) - set(dat_file_names), set(dat_file_names) - set(tensor_names))
-    return len(set(tensor_names) - set(dat_file_names)) == 0
+    logger.info(f'{sorted(list(set(tensor_names) - set(dat_file_names)))}, {sorted(list(set(dat_file_names) - set(tensor_names)))}')
+    return set(tensor_names) == set(dat_file_names)
 
 
 def get_layers_dict(lm_model: Module, prefix: str='') -> dict:
@@ -162,17 +163,17 @@ def get_policy_weight_map(model_info: AttrDict, policy: Policy):
     ])
     
     # model size (parameters + buffers), here we do not repeatly sum the tied paramters 
-    size_total = sum(np.prod(tensor.shape) for _, tensor in named_module_tensors(model, include_buffers=True, recurse=True))
+    size_total = sum(np.prod(tensor.shape) for _, tensor in named_module_tensors(model, include_buffers=False, recurse=True))
     size_done, size_todo = 0, size_total
     percents_done, percents_todo = 0 * percents_target, percents_target  
 
     for layer_name, layer_module in layers_dict.items():
         # current layer
-        tensor_sizes = [np.prod(tensor.shape) for _, tensor in named_module_tensors(layer_module, include_buffers=True, recurse=True)]
+        tensor_sizes = [np.prod(tensor.shape) for _, tensor in named_module_tensors(layer_module, include_buffers=False, recurse=True)]
         tensor_sizes_cumsum = np.cumsum(tensor_sizes)
 
         device_allo_size_dict = {device: 0 for device in devices} # to balance the percents
-        for i, (tensor_name, tensor) in enumerate(named_module_tensors(layer_module, include_buffers=True, recurse=True)):
+        for i, (tensor_name, tensor) in enumerate(named_module_tensors(layer_module, include_buffers=False, recurse=True)):
             abs_tensor_name = layer_name + '.' + tensor_name
 
             def find_processed_tied(abs_tensor_name, tied_params, weight_assign_dict):

@@ -108,8 +108,8 @@ def to_flexgen_forward(model, layer_names, j, compute_device, index, weight_map,
             # output = old_forward(*args, **kwargs)
             # logger.debug(f'output: {get_size_info(output)}')
 
-            args_0 = get_kth_batch_inputs(args, 0, gbs)
-            kwargs_0 = get_kth_batch_inputs(kwargs, 0, gbs)
+            args_0 = get_kth_batch_inputs(args, 0, ngb)
+            kwargs_0 = get_kth_batch_inputs(kwargs, 0, ngb)
             logger.debug(f'args_0: {get_size_info(args_0)}')
             logger.debug(f'kwargs_0: {get_size_info(kwargs_0)}')
             # output_0 = old_forward(*args_0, **kwargs_0)
@@ -120,8 +120,8 @@ def to_flexgen_forward(model, layer_names, j, compute_device, index, weight_map,
                 logger.debug(f'layer: {layer_name}, batch: {k}')
 
                 # 'pre' fwd: load curr & next inputs (activations, KV cache), store & offload prev 
-                args_k = get_kth_batch_inputs(args, k, gbs)
-                kwargs_k = get_kth_batch_inputs(kwargs, k, gbs)
+                args_k = get_kth_batch_inputs(args, k, ngb)
+                kwargs_k = get_kth_batch_inputs(kwargs, k, ngb)
 
                 # the k-th fwd pass
                 output = old_forward(*args_k, **kwargs_k)

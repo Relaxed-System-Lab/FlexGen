@@ -55,7 +55,7 @@ def flexgen_offload_module_tensor(model, tensor_name, policy_device_map):
 def load_layer_weights(model, layer_name, compute_device, index, offload_folder, dat_files, tied_params):
     logger.debug(f'load_layer_weights: {layer_name} to {compute_device}')
     layer_module = get_module_from_name(model, layer_name)
-    weight_names = [layer_name + '.' + name for name, _ in named_module_tensors(layer_module, True, True)]
+    weight_names = [layer_name + '.' + name for name, _ in named_module_tensors(layer_module, False, True)]
     layer_dat_files = [os.path.join(offload_folder, get_tied_target(w, tied_params, dat_files) + '.dat') for w in weight_names]
     assert all([os.path.isfile(f) for f in layer_dat_files]), f'dat file error, {dat_files}'
     
@@ -66,6 +66,6 @@ def load_layer_weights(model, layer_name, compute_device, index, offload_folder,
 def offload_layer_weights(model, layer_name, weight_map):
     logger.debug(f'offload_layer_weights: {layer_name}\n\n')
     layer_module = get_module_from_name(model, layer_name)
-    weight_names = [layer_name + '.' + name for name, _ in named_module_tensors(layer_module, True, True)]
+    weight_names = [layer_name + '.' + name for name, _ in named_module_tensors(layer_module, False, True)]
     for w in weight_names:
         flexgen_offload_module_tensor(model, w, weight_map) 
