@@ -121,7 +121,7 @@ def check_disk(checkpoint, offload_folder):
     tensor_names = [n for n, _ in named_module_tensors(model, include_buffers=False, recurse=True)]
     dat_file_names = [file[:-4] for file in os.listdir(offload_folder) if file.endswith('.dat')]
     logger.info(f'{sorted(list(set(tensor_names) - set(dat_file_names)))}, {sorted(list(set(dat_file_names) - set(tensor_names)))}')
-    return set(tensor_names) == set(dat_file_names)
+    return len(set(tensor_names) - set(dat_file_names)) == 0
 
 
 def get_layers_dict(lm_model: Module, prefix: str='') -> dict:
