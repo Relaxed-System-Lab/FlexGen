@@ -1,6 +1,6 @@
-from flexgen_utils import logging, Policy
-from flexgen_test import test_hf_gen 
-from flexgen_forward import flexgen
+from flexgen_utils import Policy, logging
+from layer_forward import flexgen
+from generate_test import test_hf_gen
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -22,6 +22,6 @@ policy = Policy(
     pin_weight=True,
 )
 
-# model init
 with flexgen(checkpoint, policy) as model:
-    test_hf_gen(checkpoint, model, policy.gpu_batch_size, policy.num_gpu_batches)
+    num_prompts = policy.gpu_batch_size * policy.num_gpu_batches
+    test_hf_gen(checkpoint, model, num_prompts)

@@ -2,7 +2,8 @@
 from transformers import AutoTokenizer
 from flexgen_utils import logging
 
-def test_hf_gen(checkpoint, model, gbs, ngb, prompt_len=10, gen_len=30, prompts=None):
+
+def test_hf_gen(checkpoint, model, num_prompts, gen_len=30, prompts=None):
     # test .generate() for huggingface CausalLM models.
 
     # prompts
@@ -13,7 +14,7 @@ def test_hf_gen(checkpoint, model, gbs, ngb, prompt_len=10, gen_len=30, prompts=
             'Where is Deutschland?',
             'How is Huawei Mate 60 Pro?'
         ] 
-    prompts = prompts * (gbs * ngb // len(prompts)) + prompts[:(gbs * ngb % len(prompts))]
+    prompts = prompts * (num_prompts // len(prompts)) + prompts[:(num_prompts % len(prompts))]
 
     # tokenizer
     tokenizer = AutoTokenizer.from_pretrained(checkpoint)
@@ -26,7 +27,7 @@ def test_hf_gen(checkpoint, model, gbs, ngb, prompt_len=10, gen_len=30, prompts=
     # generate
     generate_ids = model.generate(
         inputs.input_ids, 
-        max_length=prompt_len + gen_len, # ?
+        max_new_tokens=gen_len, # max_lengths
         # num_beams=2, #
         # num_beam_groups=2, #
         # diversity_penalty=0.1, #

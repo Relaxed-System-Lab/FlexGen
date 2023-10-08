@@ -1,4 +1,4 @@
-from . import get_module_from_name, get_tied_target
+from . import get_module_from_name
 from .logging import logging
 import os 
 import torch

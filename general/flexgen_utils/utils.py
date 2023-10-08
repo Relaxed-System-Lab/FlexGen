@@ -12,12 +12,4 @@ def get_module_from_name(lm_model, name):
     return module 
 
 
-def get_tied_target(tensor_name, tied_params, dat_files):
-    # if tensor_name is tied and without a .dat file, if it is not tied, return itself
-    for group in tied_params:
-        if tensor_name in group:
-            for name in group:
-                if name + '.dat' in dat_files:
-                    return name 
-    return tensor_name
 

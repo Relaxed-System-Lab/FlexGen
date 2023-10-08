@@ -8,3 +8,8 @@ TODO:
 - shared / tied weights
 - multiple GPU / tensor parallism
 - various inference algorithms (including: ?)
+
+Example:
+```shell
+python run.py
+```
