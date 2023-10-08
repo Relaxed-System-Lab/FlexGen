@@ -12,11 +12,9 @@ from accelerate.hooks import remove_hook_from_module
 from accelerate.utils import find_tied_parameters, named_module_tensors, set_module_tensor_to_device
 
 from flexgen_utils import logging, Policy, AttrDict
-from flexgen_utils import get_device, get_module_from_name, get_tied_target
+from flexgen_utils import get_module_from_name, get_tied_target
 from flexgen_utils import flexgen_load_module_tensor, flexgen_offload_module_tensor, load_layer_weights, offload_layer_weights
 
-from flexgen_test import test_hf_gen 
-from flexgen_forward import test
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -51,27 +49,8 @@ def policy_init(
     policy_device_map = output.device_map
     flexgen_layers = output.layers_dict
 
-    # download and process to .dat files
-    if not check_disk(checkpoint, offload_folder):
-        disk_weight_map = {name:'disk' for name in policy_device_map}
-        try:
-            AutoModelForCausalLM.from_pretrained(
-                checkpoint, 
-                device_map=disk_weight_map, 
-                offload_folder=offload_folder, 
-                offload_state_dict=True,
-                use_safetensors=False, # download .bin files, for now
-            )
-        except:
-            pass
-
-    # check the model on disk
-    if not check_disk(checkpoint, offload_folder):
-        err_msg = 'Mismatch between offload folder and model'
-        logger.error(err_msg)
-        raise RuntimeError(err_msg)
-    logger.info(f'The whole model has been downloaded an processed to offload_folder: \'{offload_folder}\'')
-
+    get_model_on_disk(checkpoint, offload_folder)
+    
     # policy init
     dat_files = [f for f in os.listdir(offload_folder) if f.endswith('.dat')]
     with open(os.path.join(offload_folder, 'index.json'), 'r') as f:
@@ -98,6 +77,9 @@ def policy_init(
     })
     
     # get ordered layers by test run
+    from flexgen_test import test_hf_gen 
+    from flexgen_forward import test 
+    
     call_layer_log = []
     with test(output, call_layer_log):
         test_hf_gen(output.checkpoint, output.model, 1,1,1,1, prompts=['0'])
@@ -106,6 +88,16 @@ def policy_init(
     output.layer_names = call_layer_log
 
     return output
+
+def get_device(cur_percent, percents, choices):
+    # choose a device (gpu / cpu / disk) for a weight tensor by its percent of size
+    percents = np.cumsum(percents)
+    assert np.abs(percents[-1] - 1.0) < 1e-5, f'{percents}'
+
+    for i in range(len(percents)):
+        if cur_percent < percents[i]:
+            return choices[i]
+    return choices[-1]
 
 
 
@@ -122,6 +114,33 @@ def check_disk(checkpoint, offload_folder):
     dat_file_names = [file[:-4] for file in os.listdir(offload_folder) if file.endswith('.dat')]
     logger.info(f'{sorted(list(set(tensor_names) - set(dat_file_names)))}, {sorted(list(set(dat_file_names) - set(tensor_names)))}')
     return len(set(tensor_names) - set(dat_file_names)) == 0
+
+
+def get_model_on_disk(checkpoint, offload_folder):
+    config = AutoConfig.from_pretrained(checkpoint)
+    with init_empty_weights():
+        model = AutoModelForCausalLM.from_config(config)
+
+    # download and process to .dat files
+    if not check_disk(checkpoint, offload_folder):
+        disk_weight_map = {name:'disk' for name in named_module_tensors(model, include_buffers=False, recurse=True)}
+        try:
+            AutoModelForCausalLM.from_pretrained(
+                checkpoint, 
+                device_map=disk_weight_map, 
+                offload_folder=offload_folder, 
+                offload_state_dict=True,
+                use_safetensors=False, # download .bin files, for now
+            )
+        except:
+            pass
+
+    # check the model on disk
+    if not check_disk(checkpoint, offload_folder):
+        err_msg = 'Mismatch between offload folder and model'
+        logger.error(err_msg)
+        raise RuntimeError(err_msg)
+    logger.info(f'The whole model has been downloaded an processed to offload_folder: \'{offload_folder}\'')
 
 
 def get_layers_dict(lm_model: Module, prefix: str='') -> dict:

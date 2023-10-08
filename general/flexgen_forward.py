@@ -10,7 +10,7 @@ logger.setLevel(logging.DEBUG)
 
 from flexgen_utils import load_layer_weights, offload_layer_weights
 from flexgen_minibatch import get_size_info, get_kth_batch_inputs, concat_outputs
-
+from flexgen_init import policy_init
 
 def to_old_forward(model, layer_names, j):
     layer_name = layer_names[j]
@@ -141,15 +141,17 @@ def to_flexgen_forward(model, layer_names, j, compute_device, index, weight_map,
     return layer
 
 @contextlib.contextmanager
-def flexgen(flexgen_model, policy):
-    model = flexgen_model.model
-    weight_map = flexgen_model.weight_map
-    layer_names = flexgen_model.layer_names
+def flexgen(checkpoint, policy):
+    policy_init_output = policy_init(checkpoint, policy)
+
+    model = policy_init_output.model
+    weight_map = policy_init_output.weight_map
+    layer_names = policy_init_output.layer_names
     layer_nums = len(layer_names)
-    index = flexgen_model.index
-    dat_files = flexgen_model.dat_files
-    tied_params = flexgen_model.tied_params
-    offload_folder = flexgen_model.offload_folder
+    index = policy_init_output.index
+    dat_files = policy_init_output.dat_files
+    tied_params = policy_init_output.tied_params
+    offload_folder = policy_init_output.offload_folder
 
     gbs = policy.gpu_batch_size
     ngb = policy.num_gpu_batches
@@ -159,7 +161,7 @@ def flexgen(flexgen_model, policy):
         compute_device = 'cpu'
         to_flexgen_forward(model, layer_names, j, compute_device, index, weight_map,  offload_folder, ngb, gbs, dat_files, tied_params)
     
-    yield 
+    yield model
 
     # to old fwd
     for j in range(layer_nums):

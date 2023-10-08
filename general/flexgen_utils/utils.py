@@ -1,16 +1,3 @@
-import numpy as np 
-
-def get_device(cur_percent, percents, choices):
-    # choose a device (gpu / cpu / disk) for a weight tensor by its percent of size
-    percents = np.cumsum(percents)
-    assert np.abs(percents[-1] - 1.0) < 1e-5, f'{percents}'
-
-    for i in range(len(percents)):
-        if cur_percent < percents[i]:
-            return choices[i]
-    return choices[-1]
-
-
 def get_module_from_name(lm_model, name):
     splits = name.split('.')
     module = lm_model
