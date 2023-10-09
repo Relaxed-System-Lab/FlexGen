@@ -4,7 +4,7 @@ import torch
 import functools 
 import contextlib
 
-from minibatch import get_size_info, get_kth_batch_inputs, concat_outputs
+from minibatch import get_size_info, get_kth_batch_inputs, gather_outputs
 from model import ModelPolicyLoader 
 from utils import logging, get_module_from_name
 
@@ -106,7 +106,7 @@ def to_flexgen_forward(mpl, j, compute_device):
                 # 'post' fwd: offload curr inputs
 
             logger.debug(f'outputs before concat: {ngb} x {get_size_info(outputs[0])}')
-            output = concat_outputs(outputs)
+            output = gather_outputs(outputs)
             logger.debug(f'outputs after concat: {get_size_info(output)}')                
 
         # post fwd: free curr weights
