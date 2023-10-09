@@ -5,8 +5,9 @@ TODO:
 - cuda streams
 - profiler
 - safetensors
+- mixed device layer io
 - shared / tied weights
-- multiple GPU / tensor parallism
+- multiple GPU / tensor parallelism
 - various inference algorithms (including: ?)
 
 Example:

@@ -10,7 +10,7 @@ from torch.nn import Module, ModuleList
 from transformers import AutoModelForCausalLM, AutoConfig
 from accelerate import init_empty_weights
 from accelerate.hooks import remove_hook_from_module
-from accelerate.utils import find_tied_parameters, named_module_tensors, set_module_tensor_to_device
+from accelerate.utils import find_tied_parameters, named_module_tensors, set_module_tensor_to_device, send_to_device
 
 from utils import logging, Policy
 from utils import get_module_from_name
@@ -150,7 +150,7 @@ class ModelPolicyLoader:
                     f'CPU Mem {mem_c:.2f} GiB ({mem_c / mem:.2%}), '
                     f'Disk Mem {mem_d:.2f} Gib ({mem_d / mem:.2%})')
 
-    def check_disk(self):
+    def is_on_disk(self):
         # check if the model has a complete copy on disk.
         if not os.path.isdir(self.offload_folder): return False 
         model = self.get_empty_model()
@@ -160,7 +160,7 @@ class ModelPolicyLoader:
         return len(set(tensor_names) - set(dat_file_names)) == 0
         
     def download(self):
-        if not self.check_disk():
+        if not self.is_on_disk():
             disk_weight_map = {name:'disk' for name in named_module_tensors(self.model, include_buffers=False, recurse=True)}
             try:
                 AutoModelForCausalLM.from_pretrained(
@@ -174,7 +174,7 @@ class ModelPolicyLoader:
                 pass
 
         # check the model on disk
-        if not self.check_disk():
+        if not self.is_on_disk():
             err_msg = 'Mismatch between offload folder and model'
             logger.error(err_msg)
             raise RuntimeError(err_msg)
@@ -214,18 +214,18 @@ class ModelPolicyLoader:
 
         # to device 
         np_memmap = np.memmap(load_path, dtype=dtype, shape=shape, mode='r') 
-        tmp = torch.from_numpy(np_memmap).to(device) 
+        value = torch.from_numpy(np_memmap) #.to(device) 
 
-        set_module_tensor_to_device(self.model, tensor_name, device, tmp)
+        set_module_tensor_to_device(self.model, tensor_name, device, value)
 
-    # TODO
     def offload_module_tensor(self, tensor_name):
         tensor = get_module_from_name(self.model, tensor_name)
+
         device = self.device_map[tensor_name]
         if device == 'disk': device = 'meta'
+        device = torch.device(device) # destination
 
-        if tensor.device != torch.device(device):
-            # TODO: gtod: gtoc + ctod, etc.
+        if tensor.device != device:
             set_module_tensor_to_device(self.model, tensor_name, device, tensor) 
     
     def init_all_weights(self):
