@@ -243,6 +243,10 @@ class ModelPolicyLoader:
             if device != 'disk':
                 self.load_module_tensor(tensor_name, device) 
 
+    def __del__(self):
+        for tensor_name, _ in tqdm(self.device_map.items()):
+            self.load_module_tensor(tensor_name, 'meta') 
+
     def load_layer_weights(self, layer_name, compute_device):
         logger.debug(f'load_layer_weights: {layer_name} to {compute_device}')
         layer_module = get_module_from_name(self.model, layer_name)

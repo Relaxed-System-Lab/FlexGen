@@ -35,7 +35,7 @@ def get_kth_batch_inputs(inputs, k, ngb): # for both args, kwargs, with a nested
         logger.warning(f'inputs: {inputs} of type \'{type(inputs)}\' is not implemented.')
         return inputs
 
-def gather_outputs(outputs): # gather K outputs to one output
+def concat_outputs(outputs): # concatenate K outputs to one output
     assert len(outputs), 'empty outputs.'
     assert isinstance(outputs[0], (torch.Tensor, tuple)), f'Only supports layer output type of torch.Tensor or tuple. However, we get a {type(outputs[0])}.'
     
