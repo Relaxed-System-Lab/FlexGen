@@ -1,6 +1,6 @@
 from utils import Policy, logging
-from layer_forward import flexgen
-from generate_test import test_hf_gen
+from forward import flexgen
+from test import test_hf_gen
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)

@@ -1,3 +1,5 @@
+# split/merge layer input/output data structures to minibatch/batch
+
 import torch 
 
 def get_size_info(obj): # recursive

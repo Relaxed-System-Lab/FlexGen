@@ -1,9 +1,11 @@
+# rewrite layer forward function
+
 import torch
 import functools 
 import contextlib
 
 from minibatch import get_size_info, get_kth_batch_inputs, concat_outputs
-from model_loader import ModelPolicyLoader 
+from model import ModelPolicyLoader 
 from utils import logging, get_module_from_name
 
 logger = logging.getLogger(__name__)
@@ -117,14 +119,14 @@ def to_flexgen_forward(mpl, j, compute_device):
 @contextlib.contextmanager
 def flexgen(checkpoint, policy):
     # init model 
-    from model_loader import ModelPolicyLoader
+    from model import ModelPolicyLoader
     mpl = ModelPolicyLoader(checkpoint, policy)
     mpl.init_all_weights() # init 
 
     # test run, get layer order
     call_layer_log = []
     with test(mpl, call_layer_log):
-        from generate_test import test_hf_gen
+        from test import test_hf_gen
         test_hf_gen(mpl.checkpoint, mpl.model, 1,1, prompts=['0'])
 
     assert len(call_layer_log) == len(mpl.layer_names) and set(call_layer_log) == set(mpl.layer_names)

@@ -1,3 +1,5 @@
+# model: 1) load/offload layer weights, 2) init weights by policy
+
 import os
 import numpy as np
 import json
@@ -13,7 +15,6 @@ from accelerate.utils import find_tied_parameters, named_module_tensors, set_mod
 
 from utils import logging, Policy
 from utils import get_module_from_name
-# from flexgen_utils import flexgen_load_module_tensor, flexgen_offload_module_tensor, load_layer_weights, offload_layer_weights
 
 
 logger = logging.getLogger(__name__)
@@ -242,16 +243,6 @@ class ModelPolicyLoader:
         for tensor_name, device in tqdm(self.device_map.items(), desc='model init: loading by policy...'):
             if device != 'disk':
                 self.load_module_tensor(tensor_name, device) 
-
-        # # test run to get layer calling order
-        # from flexgen_test import test_hf_gen
-
-        # call_layer_log = []
-        # with test(mpl, call_layer_log):
-        #     test_hf_gen(output.checkpoint, output.model, 1,1,1,1, prompts=['0'])
-
-        # logger.info(f'layer order: {call_layer_log}')
-        # output.layer_names = call_layer_log
 
     def load_layer_weights(self, layer_name, compute_device):
         logger.debug(f'load_layer_weights: {layer_name} to {compute_device}')
