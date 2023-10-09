@@ -1,4 +1,4 @@
-from flexgen_utils import Policy, logging
+from utils import Policy, logging
 from layer_forward import flexgen
 from generate_test import test_hf_gen
 

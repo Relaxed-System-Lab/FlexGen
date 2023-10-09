@@ -2,15 +2,12 @@ import torch
 import functools 
 import contextlib
 
-from flexgen_utils import logging, get_module_from_name
+from minibatch import get_size_info, get_kth_batch_inputs, concat_outputs
+from model_loader import ModelPolicyLoader 
+from utils import logging, get_module_from_name
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
-
-
-# from flexgen_utils import load_layer_weights, offload_layer_weights
-from minibatch import get_size_info, get_kth_batch_inputs, concat_outputs
-from model_loader import ModelPolicyLoader 
 
 
 def reset_forward(model, layer_name):        

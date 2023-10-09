@@ -1,6 +1,6 @@
 # generate test
 from transformers import AutoTokenizer
-from flexgen_utils import logging
+from utils import logging
 
 
 def test_hf_gen(checkpoint, model, num_prompts, gen_len=30, prompts=None):

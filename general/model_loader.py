@@ -11,8 +11,8 @@ from accelerate import init_empty_weights
 from accelerate.hooks import remove_hook_from_module
 from accelerate.utils import find_tied_parameters, named_module_tensors, set_module_tensor_to_device
 
-from flexgen_utils import logging, Policy
-from flexgen_utils import get_module_from_name
+from utils import logging, Policy
+from utils import get_module_from_name
 # from flexgen_utils import flexgen_load_module_tensor, flexgen_offload_module_tensor, load_layer_weights, offload_layer_weights
 
 
