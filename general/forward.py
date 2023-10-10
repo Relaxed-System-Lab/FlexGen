@@ -99,11 +99,15 @@ def to_flexgen_forward(mpl, j, compute_device):
                 args_k = get_kth_batch_inputs(args, k, ngb)
                 kwargs_k = get_kth_batch_inputs(kwargs, k, ngb)
 
+                # TODO: load args, kwargs to compute device
+
                 # the k-th fwd pass
                 output = old_forward(*args_k, **kwargs_k)
+
+                # TODO: offload args, kwargs to mixed device
+                # TODO: offload output to mixed device
+
                 outputs.append(output) 
-                
-                # 'post' fwd: offload curr inputs
 
             logger.debug(f'outputs before concat: {ngb} x {get_size_info(outputs[0])}')
             output = concat_outputs(outputs)
