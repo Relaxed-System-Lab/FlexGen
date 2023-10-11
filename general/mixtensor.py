@@ -24,8 +24,11 @@ class MixTensor:
         self.file_path = file_path
         self.dtype = dtype
     
-    def size(self):
-        return self.shape 
+    def size(self, dim=None):
+        if dim is None:
+            return self.shape 
+        else:
+            return self.shape[dim]
     
     @staticmethod
     def get_split_dim(tensor):
@@ -138,10 +141,14 @@ class BatchMixTensor:
     # def __len__(self):
     #     return len(self.batches)
     
-    def size(self):
+    def size(self, dim=None):
         shape = list(self.batches[0].size()) 
         shape[0] *= len(self.batches)
-        return torch.Size(shape)
+        size = torch.Size(shape)
+        if dim is None:
+            return size 
+        else:
+            return size[dim]
 
     def __add__(self, bmt):
         for k in range(len(self.batches)): 
@@ -161,6 +168,10 @@ class BatchMixTensor:
             tensor.append(mt.to_tensor())
         return torch.cat(tensor, dim=0)
 
+    def view(self, shape):
+        # TODO: 
+        pass 
+        # return self.to_tensor().view(shape)
 
 if __name__ == '__main__':
     
