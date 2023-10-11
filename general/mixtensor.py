@@ -1,4 +1,4 @@
-from typing import Mapping, Tuple
+from typing import Mapping, Tuple, Iterable
 import numpy as np 
 import os 
 import torch
@@ -12,7 +12,8 @@ class MixTensor:
         device: torch.device, 
         shape: torch.Size,
         percents: Mapping[str, float],
-        file_path: str
+        file_path: str,
+        dtype
     ):
         self.mix_data = mix_data
         self.split_dim = split_dim 
@@ -20,6 +21,7 @@ class MixTensor:
         self.shape = shape 
         self.percents = percents
         self.file_path = file_path
+        self.dtype = dtype
     
     def size(self):
         return self.shape 
@@ -61,6 +63,7 @@ class MixTensor:
         split_dim = cls.get_split_dim(tensor) 
         device = tensor.device 
         shape = tensor.shape
+        dtype = tensor.dtype
         
         g_data, c_data, d_data = cls.split_tensor(tensor, split_dim, percents) 
         
@@ -69,11 +72,11 @@ class MixTensor:
         if d_data.numel():
             d_data = d_data.cpu().numpy()
             shape = d_data.shape
-            dtype = d_data.dtype 
+            np_dtype = d_data.dtype 
 
-            fp = np.memmap(file_path, mode="w+", shape=shape, dtype=dtype)
+            fp = np.memmap(file_path, mode="w+", shape=shape, dtype=np_dtype)
             fp[:] = d_data[:]
-            d_data = (shape, dtype)
+            d_data = (shape, np_dtype)
         else:
             d_data = None 
         mix_data = (g_data, c_data, d_data)
@@ -84,8 +87,14 @@ class MixTensor:
             device=device,
             shape=shape,
             percents=percents,
-            file_path=file_path
+            file_path=file_path,
+            dtype=dtype
         )
+
+    @classmethod 
+    def from_mixtensor(cls, mix_tensor):
+        self = mix_tensor 
+        return self 
 
     def to_tensor(self):
         g_data, c_data, d_data = self.mix_data 
@@ -101,8 +110,8 @@ class MixTensor:
                 c_data = c_data.to(compute_device) 
             tensor.append(c_data)
         if d_data is not None:
-            (shape, dtype) = d_data 
-            d_data = np.memmap(self.file_path, shape=shape, dtype=dtype, mode='r')
+            (shape, np_dtype) = d_data 
+            d_data = np.memmap(self.file_path, shape=shape, dtype=np_dtype, mode='r')
             d_data = torch.from_numpy(d_data).to(compute_device)
             tensor.append(d_data)
             
@@ -115,6 +124,46 @@ class MixTensor:
         res = self.to_tensor() + mix_tensor.to_tensor() 
         return self.from_tensor(res, self.percents, self.file_path)
 
+
+class BatchMixTensor:
+    def __init__(self, batches: Iterable[MixTensor]):
+        self.dtype = batches[0].dtype
+        self.device = batches[0].device
+        self.batches = batches 
+
+        self.shape = self.size()
+
+    def __getitem__(self, i):
+        return self.batches[i]
+    
+    def __setitem__(self, i, mt: MixTensor):
+        self.batches[i] = mt
+
+    def __len__(self):
+        return len(self.batches)
+    
+    def size(self):
+        shape = list(self[0].size()) 
+        shape[0] *= len(self)
+        return torch.Size(shape)
+
+    def __add__(self, bmt):
+        for k in range(len(self)): # K batches 
+            # TODO flexgen: parallelly load k+1
+            self_k = self[k].to_tensor()
+            bmt_k = bmt[k].to_tensor()
+            res = self_k + bmt_k 
+            self[k] = MixTensor.from_tensor(res, self[k].percents, self[k].file_path)
+        return self 
+
+    def contiguous(self):
+        tensor = []
+        for mt in self:
+            tensor.append(mt.to_tensor())
+        return torch.cat(tensor)
+
+
+
 if __name__ == '__main__':
     
     x = torch.tensor([1,2,3])
@@ -122,3 +171,4 @@ if __name__ == '__main__':
     m2 = MixTensor.from_tensor(x, percents={'cuda':0, 'cpu':0.5, 'disk':0.5}, file_path='test/m2.dat')
     m = m + m2
     print(m.to_tensor())
+

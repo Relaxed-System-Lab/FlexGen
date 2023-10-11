@@ -4,7 +4,7 @@ import torch
 import functools 
 import contextlib
 
-from minibatch import get_size_info, load_kth_batch_inputs, concat_outputs
+from minibatch import get_type_size_info, to_mixed_device, load_kth_batch_inputs, concat_outputs
 from model import ModelPolicyLoader 
 from utils import logging, get_module_from_name
 
@@ -58,13 +58,13 @@ def test(mpl, call_layer_log):
         reset_forward(model, layer_name)
 
 
-
 def to_flexgen_forward(mpl, j, compute_device):
     # rewrite the j-th layer's forward
     layer_name = mpl.layer_names[j]
     next_layer_name = mpl.layer_names[(j + 1) % len(mpl.layer_names)]
 
-    ngb = mpl.policy.num_gpu_batches
+    policy = mpl.policy
+    ngb = policy.num_gpu_batches
 
     layer = get_module_from_name(mpl.model, layer_name)  
     if hasattr(layer, "_flexgen_old_forward"): return  
@@ -79,39 +79,26 @@ def to_flexgen_forward(mpl, j, compute_device):
         
         # loop forward pass of K minibatches, TODO: cuda stream
         with torch.no_grad():
-            logger.debug(f'args: {get_size_info(args)}')
-            logger.debug(f'kwargs: {get_size_info(kwargs)}')
-            # output = old_forward(*args, **kwargs)
-            # logger.debug(f'output: {get_size_info(output)}')
-
-            args_0 = load_kth_batch_inputs(args, 0, ngb)
-            kwargs_0 = load_kth_batch_inputs(kwargs, 0, ngb)
-            logger.debug(f'args_0: {get_size_info(args_0)}')
-            logger.debug(f'kwargs_0: {get_size_info(kwargs_0)}')
-            # output_0 = old_forward(*args_0, **kwargs_0)
-            # logger.debug(f'output0: {get_size_info(output_0)}')
-
+            logger.debug(f'args: {get_type_size_info(args)}')
+            logger.debug(f'kwargs: {get_type_size_info(kwargs)}')
+            
             outputs = []
             for k in range(ngb):
                 logger.debug(f'layer: {layer_name}, batch: {k}')
 
-                # 'pre' fwd: load curr & next inputs (activations, KV cache), store & offload prev 
+                # 'pre' fwd: load curr & next inputs (activations, KV cache) to compute device
                 args_k = load_kth_batch_inputs(args, k, ngb)
                 kwargs_k = load_kth_batch_inputs(kwargs, k, ngb)
-
-                # TODO: load args, kwargs to compute device
 
                 # the k-th fwd pass
                 output = old_forward(*args_k, **kwargs_k)
 
-                # TODO: offload args, kwargs to mixed device
-                # TODO: offload output to mixed device
-
+                # post fwd: 1) output: to mix, 2) args_k, kwargs_k: free (TODO?)
+                output = to_mixed_device(output, policy, prefix=f'tmp/{layer_name}_output')
                 outputs.append(output) 
 
-            logger.debug(f'outputs before concat: {ngb} x {get_size_info(outputs[0])}')
             output = concat_outputs(outputs)
-            logger.debug(f'outputs after concat: {get_size_info(output)}')                
+            logger.debug(f'outputs after concat: {get_type_size_info(output)}')                
 
         # post fwd: free curr weights
         mpl.offload_layer_weights(layer_name)
@@ -120,7 +107,7 @@ def to_flexgen_forward(mpl, j, compute_device):
     layer.forward = new_forward
     logger.debug(f'{layer_name} to flexgen forward')
 
-@contextlib.contextmanager
+@contextlib.contextmanager 
 def flexgen(checkpoint, policy):
     # init model 
     from model import ModelPolicyLoader
@@ -140,7 +127,7 @@ def flexgen(checkpoint, policy):
     for j, _ in enumerate(mpl.layer_names):
         compute_device = 'cpu'
         to_flexgen_forward(mpl, j, compute_device)
-    yield mpl.model
+    yield mpl.model 
     for layer_name in mpl.layer_names:
         reset_forward(mpl.model, layer_name)
         
