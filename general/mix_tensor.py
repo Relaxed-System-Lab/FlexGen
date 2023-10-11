@@ -108,8 +108,7 @@ class MixTensor:
             
         tensor = torch.cat(tensor, dim=self.split_dim) 
 
-        return tensor 
-            
+        return tensor        
 
     def __add__(self, mix_tensor):
         assert self.shape == mix_tensor.shape and type(self) == type(mix_tensor) # is same shape mix tensor
@@ -121,4 +120,5 @@ if __name__ == '__main__':
     x = torch.tensor([1,2,3])
     m = MixTensor.from_tensor(x, percents={'cuda':0, 'cpu':0.5, 'disk':0.5}, file_path='test/m.dat')
     m2 = MixTensor.from_tensor(x, percents={'cuda':0, 'cpu':0.5, 'disk':0.5}, file_path='test/m2.dat')
-    print((m+m2).to_tensor())
+    m = m + m2
+    print(m.to_tensor())

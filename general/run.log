@@ -1,2 +1,512 @@
-2023-10-11 10:07:54,036 [instantiator.py:21 in <module>] INFO - Created a temporary directory at /tmp/tmp8tuytnca
-2023-10-11 10:07:54,038 [instantiator.py:76 in _write] INFO - Writing /tmp/tmp8tuytnca/_remote_module_non_scriptable.py
+2023-10-11 12:21:14,932 [instantiator.py:21 in <module>] INFO - Created a temporary directory at /tmp/tmp8b2i7pfc
+2023-10-11 12:21:14,934 [instantiator.py:76 in _write] INFO - Writing /tmp/tmp8b2i7pfc/_remote_module_non_scriptable.py
+2023-10-11 12:21:15,093 [connectionpool.py:1003 in _new_conn] DEBUG - Starting new HTTPS connection (1): huggingface.co:443
+2023-10-11 12:21:15,152 [connectionpool.py:456 in _make_request] DEBUG - https://huggingface.co:443 "HEAD /facebook/opt-125m/resolve/main/config.json HTTP/1.1" 200 0
+2023-10-11 12:21:16,808 [tpu_cluster_resolver.py:32 in <module>] DEBUG - Falling back to TensorFlow client; we recommended you install the Cloud TPU client directly with pip install cloud-tpu-client.
+2023-10-11 12:21:17,200 [__init__.py:47 in <module>] DEBUG - Creating converter from 7 to 5
+2023-10-11 12:21:17,201 [__init__.py:47 in <module>] DEBUG - Creating converter from 5 to 7
+2023-10-11 12:21:17,202 [__init__.py:47 in <module>] DEBUG - Creating converter from 7 to 5
+2023-10-11 12:21:17,204 [__init__.py:47 in <module>] DEBUG - Creating converter from 5 to 7
+2023-10-11 12:21:18,048 [connectionpool.py:456 in _make_request] DEBUG - https://huggingface.co:443 "HEAD /facebook/opt-125m/resolve/main/config.json HTTP/1.1" 200 0
+2023-10-11 12:21:18,135 [model.py:159 in is_on_disk] INFO - [], ['lm_head.weight']
+2023-10-11 12:21:18,176 [connectionpool.py:456 in _make_request] DEBUG - https://huggingface.co:443 "HEAD /facebook/opt-125m/resolve/main/config.json HTTP/1.1" 200 0
+2023-10-11 12:21:18,260 [model.py:159 in is_on_disk] INFO - [], ['lm_head.weight']
+2023-10-11 12:21:18,261 [model.py:182 in download] INFO - The whole model has been downloaded an processed to offload_folder: 'offload_dir/facebook.opt-125m'
+2023-10-11 12:21:18,269 [model.py:138 in get_policy_weight_map] DEBUG - model.decoder.embed_tokens, [0. 0. 1.], size_todo: 86630400
+2023-10-11 12:21:18,270 [model.py:138 in get_policy_weight_map] DEBUG - model.decoder.embed_positions, [0. 0. 1.], size_todo: 85056000
+2023-10-11 12:21:18,272 [model.py:138 in get_policy_weight_map] DEBUG - model.decoder.final_layer_norm, [0.00000000e+00 1.91116887e-05 9.99980888e-01], size_todo: 85054464
+2023-10-11 12:21:18,275 [model.py:138 in get_policy_weight_map] DEBUG - model.decoder.layers.0, [0.         0.05002193 0.94997807], size_todo: 77966592
+2023-10-11 12:21:18,277 [model.py:138 in get_policy_weight_map] DEBUG - model.decoder.layers.1, [0.         0.08698539 0.91301461], size_todo: 70878720
+2023-10-11 12:21:18,279 [model.py:138 in get_policy_weight_map] DEBUG - model.decoder.layers.2, [0.         0.11542163 0.88457837], size_todo: 63790848
+2023-10-11 12:21:18,281 [model.py:138 in get_policy_weight_map] DEBUG - model.decoder.layers.3, [0.         0.13797624 0.86202376], size_todo: 56702976
+2023-10-11 12:21:18,283 [model.py:138 in get_policy_weight_map] DEBUG - model.decoder.layers.4, [0.       0.156303 0.843697], size_todo: 49615104
+2023-10-11 12:21:18,285 [model.py:138 in get_policy_weight_map] DEBUG - model.decoder.layers.5, [0.       0.200013 0.799987], size_todo: 42527232
+2023-10-11 12:21:18,286 [model.py:138 in get_policy_weight_map] DEBUG - model.decoder.layers.6, [0.         0.21055017 0.78944983], size_todo: 35439360
+2023-10-11 12:21:18,288 [model.py:138 in get_policy_weight_map] DEBUG - model.decoder.layers.7, [0.         0.24389645 0.75610355], size_todo: 28351488
+2023-10-11 12:21:18,290 [model.py:138 in get_policy_weight_map] DEBUG - model.decoder.layers.8, [0.         0.25000554 0.74999446], size_todo: 21263616
+2023-10-11 12:21:18,293 [model.py:138 in get_policy_weight_map] DEBUG - model.decoder.layers.9, [0.         0.27657765 0.72342235], size_todo: 14175744
+2023-10-11 12:21:18,296 [model.py:138 in get_policy_weight_map] DEBUG - model.decoder.layers.10, [0.         0.27999324 0.72000676], size_todo: 7087872
+2023-10-11 12:21:18,297 [model.py:138 in get_policy_weight_map] DEBUG - model.decoder.layers.11, [0.         0.30186053 0.69813947], size_todo: 0
+2023-10-11 12:21:18,298 [model.py:138 in get_policy_weight_map] DEBUG - lm_head, [0.         0.30186053 0.69813947], size_todo: 0
+2023-10-11 12:21:18,299 [model.py:142 in get_policy_weight_map] INFO - device_map is prepared!
+2023-10-11 12:21:18,302 [model.py:148 in get_policy_weight_map] INFO - CausalLM facebook/opt-125m is to be loaded on: 
+GPU Mem 0.00 GiB (0.00%), CPU Mem 0.07 GiB (30.19%), Disk Mem 0.16 Gib (69.81%)
+2023-10-11 12:21:18,305 [model.py:241 in init_all_weights] DEBUG - init all weights...
+2023-10-11 12:21:18,360 [520681597.py:42 in to_test_forward] DEBUG - model.decoder.embed_tokens to test forward
+2023-10-11 12:21:18,361 [520681597.py:42 in to_test_forward] DEBUG - model.decoder.embed_positions to test forward
+2023-10-11 12:21:18,362 [520681597.py:42 in to_test_forward] DEBUG - model.decoder.final_layer_norm to test forward
+2023-10-11 12:21:18,363 [520681597.py:42 in to_test_forward] DEBUG - model.decoder.layers.0 to test forward
+2023-10-11 12:21:18,364 [520681597.py:42 in to_test_forward] DEBUG - model.decoder.layers.1 to test forward
+2023-10-11 12:21:18,365 [520681597.py:42 in to_test_forward] DEBUG - model.decoder.layers.2 to test forward
+2023-10-11 12:21:18,366 [520681597.py:42 in to_test_forward] DEBUG - model.decoder.layers.3 to test forward
+2023-10-11 12:21:18,367 [520681597.py:42 in to_test_forward] DEBUG - model.decoder.layers.4 to test forward
+2023-10-11 12:21:18,368 [520681597.py:42 in to_test_forward] DEBUG - model.decoder.layers.5 to test forward
+2023-10-11 12:21:18,368 [520681597.py:42 in to_test_forward] DEBUG - model.decoder.layers.6 to test forward
+2023-10-11 12:21:18,369 [520681597.py:42 in to_test_forward] DEBUG - model.decoder.layers.7 to test forward
+2023-10-11 12:21:18,370 [520681597.py:42 in to_test_forward] DEBUG - model.decoder.layers.8 to test forward
+2023-10-11 12:21:18,371 [520681597.py:42 in to_test_forward] DEBUG - model.decoder.layers.9 to test forward
+2023-10-11 12:21:18,373 [520681597.py:42 in to_test_forward] DEBUG - model.decoder.layers.10 to test forward
+2023-10-11 12:21:18,373 [520681597.py:42 in to_test_forward] DEBUG - model.decoder.layers.11 to test forward
+2023-10-11 12:21:18,374 [520681597.py:42 in to_test_forward] DEBUG - lm_head to test forward
+2023-10-11 12:21:18,412 [connectionpool.py:456 in _make_request] DEBUG - https://huggingface.co:443 "HEAD /facebook/opt-125m/resolve/main/tokenizer_config.json HTTP/1.1" 200 0
+2023-10-11 12:21:18,585 [model.py:251 in load_layer_weights] DEBUG - load_layer_weights: model.decoder.embed_tokens to cpu
+2023-10-11 12:21:18,587 [model.py:261 in offload_layer_weights] DEBUG - offload_layer_weights: model.decoder.embed_tokens
+
+
+2023-10-11 12:21:18,590 [model.py:251 in load_layer_weights] DEBUG - load_layer_weights: model.decoder.embed_positions to cpu
+2023-10-11 12:21:18,592 [model.py:261 in offload_layer_weights] DEBUG - offload_layer_weights: model.decoder.embed_positions
+
+
+2023-10-11 12:21:18,593 [model.py:251 in load_layer_weights] DEBUG - load_layer_weights: model.decoder.layers.0 to cpu
+2023-10-11 12:21:18,619 [model.py:261 in offload_layer_weights] DEBUG - offload_layer_weights: model.decoder.layers.0
+
+
+2023-10-11 12:21:18,621 [model.py:251 in load_layer_weights] DEBUG - load_layer_weights: model.decoder.layers.1 to cpu
+2023-10-11 12:21:18,630 [model.py:261 in offload_layer_weights] DEBUG - offload_layer_weights: model.decoder.layers.1
+
+
+2023-10-11 12:21:18,633 [model.py:251 in load_layer_weights] DEBUG - load_layer_weights: model.decoder.layers.2 to cpu
+2023-10-11 12:21:18,642 [model.py:261 in offload_layer_weights] DEBUG - offload_layer_weights: model.decoder.layers.2
+
+
+2023-10-11 12:21:18,645 [model.py:251 in load_layer_weights] DEBUG - load_layer_weights: model.decoder.layers.3 to cpu
+2023-10-11 12:21:18,655 [model.py:261 in offload_layer_weights] DEBUG - offload_layer_weights: model.decoder.layers.3
+
+
+2023-10-11 12:21:18,659 [model.py:251 in load_layer_weights] DEBUG - load_layer_weights: model.decoder.layers.4 to cpu
+2023-10-11 12:21:18,666 [model.py:261 in offload_layer_weights] DEBUG - offload_layer_weights: model.decoder.layers.4
+
+
+2023-10-11 12:21:18,668 [model.py:251 in load_layer_weights] DEBUG - load_layer_weights: model.decoder.layers.5 to cpu
+2023-10-11 12:21:18,676 [model.py:261 in offload_layer_weights] DEBUG - offload_layer_weights: model.decoder.layers.5
+
+
+2023-10-11 12:21:18,678 [model.py:251 in load_layer_weights] DEBUG - load_layer_weights: model.decoder.layers.6 to cpu
+2023-10-11 12:21:18,689 [model.py:261 in offload_layer_weights] DEBUG - offload_layer_weights: model.decoder.layers.6
+
+
+2023-10-11 12:21:18,691 [model.py:251 in load_layer_weights] DEBUG - load_layer_weights: model.decoder.layers.7 to cpu
+2023-10-11 12:21:18,699 [model.py:261 in offload_layer_weights] DEBUG - offload_layer_weights: model.decoder.layers.7
+
+
+2023-10-11 12:21:18,702 [model.py:251 in load_layer_weights] DEBUG - load_layer_weights: model.decoder.layers.8 to cpu
+2023-10-11 12:21:18,708 [model.py:261 in offload_layer_weights] DEBUG - offload_layer_weights: model.decoder.layers.8
+
+
+2023-10-11 12:21:18,711 [model.py:251 in load_layer_weights] DEBUG - load_layer_weights: model.decoder.layers.9 to cpu
+2023-10-11 12:21:18,718 [model.py:261 in offload_layer_weights] DEBUG - offload_layer_weights: model.decoder.layers.9
+
+
+2023-10-11 12:21:18,721 [model.py:251 in load_layer_weights] DEBUG - load_layer_weights: model.decoder.layers.10 to cpu
+2023-10-11 12:21:18,727 [model.py:261 in offload_layer_weights] DEBUG - offload_layer_weights: model.decoder.layers.10
+
+
+2023-10-11 12:21:18,730 [model.py:251 in load_layer_weights] DEBUG - load_layer_weights: model.decoder.layers.11 to cpu
+2023-10-11 12:21:18,738 [model.py:261 in offload_layer_weights] DEBUG - offload_layer_weights: model.decoder.layers.11
+
+
+2023-10-11 12:21:18,740 [model.py:251 in load_layer_weights] DEBUG - load_layer_weights: model.decoder.final_layer_norm to cpu
+2023-10-11 12:21:18,742 [model.py:261 in offload_layer_weights] DEBUG - offload_layer_weights: model.decoder.final_layer_norm
+
+
+2023-10-11 12:21:18,743 [model.py:251 in load_layer_weights] DEBUG - load_layer_weights: lm_head to cpu
+2023-10-11 12:21:18,756 [model.py:261 in offload_layer_weights] DEBUG - offload_layer_weights: lm_head
+
+
+2023-10-11 12:21:18,762 [test.py:40 in test_hf_gen] INFO - 0.
+2023-10-11 12:21:18,763 [test.py:41 in test_hf_gen] INFO - ----------
+2023-10-11 12:21:18,772 [520681597.py:22 in reset_forward] DEBUG - model.decoder.embed_tokens from test to old.
+2023-10-11 12:21:18,773 [520681597.py:22 in reset_forward] DEBUG - model.decoder.embed_positions from test to old.
+2023-10-11 12:21:18,774 [520681597.py:22 in reset_forward] DEBUG - model.decoder.final_layer_norm from test to old.
+2023-10-11 12:21:18,774 [520681597.py:22 in reset_forward] DEBUG - model.decoder.layers.0 from test to old.
+2023-10-11 12:21:18,775 [520681597.py:22 in reset_forward] DEBUG - model.decoder.layers.1 from test to old.
+2023-10-11 12:21:18,777 [520681597.py:22 in reset_forward] DEBUG - model.decoder.layers.2 from test to old.
+2023-10-11 12:21:18,778 [520681597.py:22 in reset_forward] DEBUG - model.decoder.layers.3 from test to old.
+2023-10-11 12:21:18,779 [520681597.py:22 in reset_forward] DEBUG - model.decoder.layers.4 from test to old.
+2023-10-11 12:21:18,780 [520681597.py:22 in reset_forward] DEBUG - model.decoder.layers.5 from test to old.
+2023-10-11 12:21:18,780 [520681597.py:22 in reset_forward] DEBUG - model.decoder.layers.6 from test to old.
+2023-10-11 12:21:18,782 [520681597.py:22 in reset_forward] DEBUG - model.decoder.layers.7 from test to old.
+2023-10-11 12:21:18,782 [520681597.py:22 in reset_forward] DEBUG - model.decoder.layers.8 from test to old.
+2023-10-11 12:21:18,783 [520681597.py:22 in reset_forward] DEBUG - model.decoder.layers.9 from test to old.
+2023-10-11 12:21:18,785 [520681597.py:22 in reset_forward] DEBUG - model.decoder.layers.10 from test to old.
+2023-10-11 12:21:18,786 [520681597.py:22 in reset_forward] DEBUG - model.decoder.layers.11 from test to old.
+2023-10-11 12:21:18,787 [520681597.py:22 in reset_forward] DEBUG - lm_head from test to old.
+2023-10-11 12:21:18,788 [3420557143.py:50 in to_flexgen_forward] DEBUG - model.decoder.embed_tokens to flexgen forward
+2023-10-11 12:21:18,789 [3420557143.py:50 in to_flexgen_forward] DEBUG - model.decoder.embed_positions to flexgen forward
+2023-10-11 12:21:18,790 [3420557143.py:50 in to_flexgen_forward] DEBUG - model.decoder.layers.0 to flexgen forward
+2023-10-11 12:21:18,791 [3420557143.py:50 in to_flexgen_forward] DEBUG - model.decoder.layers.1 to flexgen forward
+2023-10-11 12:21:18,792 [3420557143.py:50 in to_flexgen_forward] DEBUG - model.decoder.layers.2 to flexgen forward
+2023-10-11 12:21:18,793 [3420557143.py:50 in to_flexgen_forward] DEBUG - model.decoder.layers.3 to flexgen forward
+2023-10-11 12:21:18,794 [3420557143.py:50 in to_flexgen_forward] DEBUG - model.decoder.layers.4 to flexgen forward
+2023-10-11 12:21:18,795 [3420557143.py:50 in to_flexgen_forward] DEBUG - model.decoder.layers.5 to flexgen forward
+2023-10-11 12:21:18,796 [3420557143.py:50 in to_flexgen_forward] DEBUG - model.decoder.layers.6 to flexgen forward
+2023-10-11 12:21:18,796 [3420557143.py:50 in to_flexgen_forward] DEBUG - model.decoder.layers.7 to flexgen forward
+2023-10-11 12:21:18,797 [3420557143.py:50 in to_flexgen_forward] DEBUG - model.decoder.layers.8 to flexgen forward
+2023-10-11 12:21:18,798 [3420557143.py:50 in to_flexgen_forward] DEBUG - model.decoder.layers.9 to flexgen forward
+2023-10-11 12:21:18,799 [3420557143.py:50 in to_flexgen_forward] DEBUG - model.decoder.layers.10 to flexgen forward
+2023-10-11 12:21:18,800 [3420557143.py:50 in to_flexgen_forward] DEBUG - model.decoder.layers.11 to flexgen forward
+2023-10-11 12:21:18,801 [3420557143.py:50 in to_flexgen_forward] DEBUG - model.decoder.final_layer_norm to flexgen forward
+2023-10-11 12:21:18,802 [3420557143.py:50 in to_flexgen_forward] DEBUG - lm_head to flexgen forward
+2023-10-11 12:21:18,842 [connectionpool.py:456 in _make_request] DEBUG - https://huggingface.co:443 "HEAD /facebook/opt-125m/resolve/main/tokenizer_config.json HTTP/1.1" 200 0
+2023-10-11 12:21:18,991 [model.py:251 in load_layer_weights] DEBUG - load_layer_weights: model.decoder.embed_tokens to cpu
+2023-10-11 12:21:18,993 [model.py:251 in load_layer_weights] DEBUG - load_layer_weights: model.decoder.embed_positions to cpu
+2023-10-11 12:21:18,994 [3420557143.py:22 in new_forward] DEBUG - args: ("<class 'torch.Tensor'>: torch.Size([8, 9])",)
+2023-10-11 12:21:18,995 [3420557143.py:23 in new_forward] DEBUG - kwargs: {}
+2023-10-11 12:21:18,996 [3420557143.py:27 in new_forward] DEBUG - layer: model.decoder.embed_tokens, batch: 0
+2023-10-11 12:21:18,998 [3420557143.py:27 in new_forward] DEBUG - layer: model.decoder.embed_tokens, batch: 1
+2023-10-11 12:21:19,000 [3420557143.py:27 in new_forward] DEBUG - layer: model.decoder.embed_tokens, batch: 2
+2023-10-11 12:21:19,002 [3420557143.py:27 in new_forward] DEBUG - layer: model.decoder.embed_tokens, batch: 3
+2023-10-11 12:21:19,004 [3420557143.py:43 in new_forward] DEBUG - outputs after concat: <class '__main__.BatchMixTensor'>: torch.Size([8, 9, 384])
+2023-10-11 12:21:19,004 [model.py:261 in offload_layer_weights] DEBUG - offload_layer_weights: model.decoder.embed_tokens
+
+
+2023-10-11 12:21:19,006 [model.py:251 in load_layer_weights] DEBUG - load_layer_weights: model.decoder.embed_positions to cpu
+2023-10-11 12:21:19,008 [model.py:251 in load_layer_weights] DEBUG - load_layer_weights: model.decoder.layers.0 to cpu
+2023-10-11 12:21:19,013 [3420557143.py:22 in new_forward] DEBUG - args: ("<class 'torch.Tensor'>: torch.Size([8, 9])", "<class 'int'>: 0")
+2023-10-11 12:21:19,013 [3420557143.py:23 in new_forward] DEBUG - kwargs: {}
+2023-10-11 12:21:19,014 [3420557143.py:27 in new_forward] DEBUG - layer: model.decoder.embed_positions, batch: 0
+2023-10-11 12:21:19,016 [3420557143.py:27 in new_forward] DEBUG - layer: model.decoder.embed_positions, batch: 1
+2023-10-11 12:21:19,018 [3420557143.py:27 in new_forward] DEBUG - layer: model.decoder.embed_positions, batch: 2
+2023-10-11 12:21:19,019 [3420557143.py:27 in new_forward] DEBUG - layer: model.decoder.embed_positions, batch: 3
+2023-10-11 12:21:19,021 [3420557143.py:43 in new_forward] DEBUG - outputs after concat: <class '__main__.BatchMixTensor'>: torch.Size([8, 9, 384])
+2023-10-11 12:21:19,022 [model.py:261 in offload_layer_weights] DEBUG - offload_layer_weights: model.decoder.embed_positions
+
+
+2023-10-11 12:25:24,491 [connectionpool.py:273 in _get_conn] DEBUG - Resetting dropped connection: huggingface.co
+2023-10-11 12:25:24,548 [connectionpool.py:456 in _make_request] DEBUG - https://huggingface.co:443 "HEAD /facebook/opt-125m/resolve/main/config.json HTTP/1.1" 200 0
+2023-10-11 12:25:24,688 [connectionpool.py:456 in _make_request] DEBUG - https://huggingface.co:443 "HEAD /facebook/opt-125m/resolve/main/config.json HTTP/1.1" 200 0
+2023-10-11 12:25:24,776 [model.py:159 in is_on_disk] INFO - [], ['lm_head.weight']
+2023-10-11 12:25:24,817 [connectionpool.py:456 in _make_request] DEBUG - https://huggingface.co:443 "HEAD /facebook/opt-125m/resolve/main/config.json HTTP/1.1" 200 0
+2023-10-11 12:25:24,903 [model.py:159 in is_on_disk] INFO - [], ['lm_head.weight']
+2023-10-11 12:25:24,905 [model.py:182 in download] INFO - The whole model has been downloaded an processed to offload_folder: 'offload_dir/facebook.opt-125m'
+2023-10-11 12:25:24,914 [model.py:138 in get_policy_weight_map] DEBUG - model.decoder.embed_tokens, [0. 0. 1.], size_todo: 86630400
+2023-10-11 12:25:24,915 [model.py:138 in get_policy_weight_map] DEBUG - model.decoder.embed_positions, [0. 0. 1.], size_todo: 85056000
+2023-10-11 12:25:24,916 [model.py:138 in get_policy_weight_map] DEBUG - model.decoder.final_layer_norm, [0.00000000e+00 1.91116887e-05 9.99980888e-01], size_todo: 85054464
+2023-10-11 12:25:24,918 [model.py:138 in get_policy_weight_map] DEBUG - model.decoder.layers.0, [0.         0.05002193 0.94997807], size_todo: 77966592
+2023-10-11 12:25:24,920 [model.py:138 in get_policy_weight_map] DEBUG - model.decoder.layers.1, [0.         0.08698539 0.91301461], size_todo: 70878720
+2023-10-11 12:25:24,921 [model.py:138 in get_policy_weight_map] DEBUG - model.decoder.layers.2, [0.         0.11542163 0.88457837], size_todo: 63790848
+2023-10-11 12:25:24,923 [model.py:138 in get_policy_weight_map] DEBUG - model.decoder.layers.3, [0.         0.13797624 0.86202376], size_todo: 56702976
+2023-10-11 12:25:24,925 [model.py:138 in get_policy_weight_map] DEBUG - model.decoder.layers.4, [0.       0.156303 0.843697], size_todo: 49615104
+2023-10-11 12:25:24,927 [model.py:138 in get_policy_weight_map] DEBUG - model.decoder.layers.5, [0.       0.200013 0.799987], size_todo: 42527232
+2023-10-11 12:25:24,929 [model.py:138 in get_policy_weight_map] DEBUG - model.decoder.layers.6, [0.         0.21055017 0.78944983], size_todo: 35439360
+2023-10-11 12:25:24,931 [model.py:138 in get_policy_weight_map] DEBUG - model.decoder.layers.7, [0.         0.24389645 0.75610355], size_todo: 28351488
+2023-10-11 12:25:24,933 [model.py:138 in get_policy_weight_map] DEBUG - model.decoder.layers.8, [0.         0.25000554 0.74999446], size_todo: 21263616
+2023-10-11 12:25:24,936 [model.py:138 in get_policy_weight_map] DEBUG - model.decoder.layers.9, [0.         0.27657765 0.72342235], size_todo: 14175744
+2023-10-11 12:25:24,938 [model.py:138 in get_policy_weight_map] DEBUG - model.decoder.layers.10, [0.         0.27999324 0.72000676], size_todo: 7087872
+2023-10-11 12:25:24,940 [model.py:138 in get_policy_weight_map] DEBUG - model.decoder.layers.11, [0.         0.30186053 0.69813947], size_todo: 0
+2023-10-11 12:25:24,941 [model.py:138 in get_policy_weight_map] DEBUG - lm_head, [0.         0.30186053 0.69813947], size_todo: 0
+2023-10-11 12:25:24,942 [model.py:142 in get_policy_weight_map] INFO - device_map is prepared!
+2023-10-11 12:25:24,950 [model.py:148 in get_policy_weight_map] INFO - CausalLM facebook/opt-125m is to be loaded on: 
+GPU Mem 0.00 GiB (0.00%), CPU Mem 0.07 GiB (30.19%), Disk Mem 0.16 Gib (69.81%)
+2023-10-11 12:25:24,953 [model.py:241 in init_all_weights] DEBUG - init all weights...
+2023-10-11 12:25:25,010 [520681597.py:42 in to_test_forward] DEBUG - model.decoder.embed_tokens to test forward
+2023-10-11 12:25:25,012 [520681597.py:42 in to_test_forward] DEBUG - model.decoder.embed_positions to test forward
+2023-10-11 12:25:25,013 [520681597.py:42 in to_test_forward] DEBUG - model.decoder.final_layer_norm to test forward
+2023-10-11 12:25:25,014 [520681597.py:42 in to_test_forward] DEBUG - model.decoder.layers.0 to test forward
+2023-10-11 12:25:25,015 [520681597.py:42 in to_test_forward] DEBUG - model.decoder.layers.1 to test forward
+2023-10-11 12:25:25,016 [520681597.py:42 in to_test_forward] DEBUG - model.decoder.layers.2 to test forward
+2023-10-11 12:25:25,017 [520681597.py:42 in to_test_forward] DEBUG - model.decoder.layers.3 to test forward
+2023-10-11 12:25:25,018 [520681597.py:42 in to_test_forward] DEBUG - model.decoder.layers.4 to test forward
+2023-10-11 12:25:25,019 [520681597.py:42 in to_test_forward] DEBUG - model.decoder.layers.5 to test forward
+2023-10-11 12:25:25,020 [520681597.py:42 in to_test_forward] DEBUG - model.decoder.layers.6 to test forward
+2023-10-11 12:25:25,022 [520681597.py:42 in to_test_forward] DEBUG - model.decoder.layers.7 to test forward
+2023-10-11 12:25:25,023 [520681597.py:42 in to_test_forward] DEBUG - model.decoder.layers.8 to test forward
+2023-10-11 12:25:25,024 [520681597.py:42 in to_test_forward] DEBUG - model.decoder.layers.9 to test forward
+2023-10-11 12:25:25,025 [520681597.py:42 in to_test_forward] DEBUG - model.decoder.layers.10 to test forward
+2023-10-11 12:25:25,026 [520681597.py:42 in to_test_forward] DEBUG - model.decoder.layers.11 to test forward
+2023-10-11 12:25:25,027 [520681597.py:42 in to_test_forward] DEBUG - lm_head to test forward
+2023-10-11 12:25:25,066 [connectionpool.py:456 in _make_request] DEBUG - https://huggingface.co:443 "HEAD /facebook/opt-125m/resolve/main/tokenizer_config.json HTTP/1.1" 200 0
+2023-10-11 12:25:25,228 [model.py:251 in load_layer_weights] DEBUG - load_layer_weights: model.decoder.embed_tokens to cpu
+2023-10-11 12:25:25,230 [model.py:261 in offload_layer_weights] DEBUG - offload_layer_weights: model.decoder.embed_tokens
+
+
+2023-10-11 12:25:25,232 [model.py:251 in load_layer_weights] DEBUG - load_layer_weights: model.decoder.embed_positions to cpu
+2023-10-11 12:25:25,233 [model.py:261 in offload_layer_weights] DEBUG - offload_layer_weights: model.decoder.embed_positions
+
+
+2023-10-11 12:25:25,235 [model.py:251 in load_layer_weights] DEBUG - load_layer_weights: model.decoder.layers.0 to cpu
+2023-10-11 12:25:25,246 [model.py:261 in offload_layer_weights] DEBUG - offload_layer_weights: model.decoder.layers.0
+
+
+2023-10-11 12:25:25,249 [model.py:251 in load_layer_weights] DEBUG - load_layer_weights: model.decoder.layers.1 to cpu
+2023-10-11 12:25:25,257 [model.py:261 in offload_layer_weights] DEBUG - offload_layer_weights: model.decoder.layers.1
+
+
+2023-10-11 12:25:25,262 [model.py:251 in load_layer_weights] DEBUG - load_layer_weights: model.decoder.layers.2 to cpu
+2023-10-11 12:25:25,271 [model.py:261 in offload_layer_weights] DEBUG - offload_layer_weights: model.decoder.layers.2
+
+
+2023-10-11 12:25:25,275 [model.py:251 in load_layer_weights] DEBUG - load_layer_weights: model.decoder.layers.3 to cpu
+2023-10-11 12:25:25,283 [model.py:261 in offload_layer_weights] DEBUG - offload_layer_weights: model.decoder.layers.3
+
+
+2023-10-11 12:25:25,287 [model.py:251 in load_layer_weights] DEBUG - load_layer_weights: model.decoder.layers.4 to cpu
+2023-10-11 12:25:25,296 [model.py:261 in offload_layer_weights] DEBUG - offload_layer_weights: model.decoder.layers.4
+
+
+2023-10-11 12:25:25,299 [model.py:251 in load_layer_weights] DEBUG - load_layer_weights: model.decoder.layers.5 to cpu
+2023-10-11 12:25:25,306 [model.py:261 in offload_layer_weights] DEBUG - offload_layer_weights: model.decoder.layers.5
+
+
+2023-10-11 12:25:25,309 [model.py:251 in load_layer_weights] DEBUG - load_layer_weights: model.decoder.layers.6 to cpu
+2023-10-11 12:25:25,317 [model.py:261 in offload_layer_weights] DEBUG - offload_layer_weights: model.decoder.layers.6
+
+
+2023-10-11 12:25:25,320 [model.py:251 in load_layer_weights] DEBUG - load_layer_weights: model.decoder.layers.7 to cpu
+2023-10-11 12:25:25,328 [model.py:261 in offload_layer_weights] DEBUG - offload_layer_weights: model.decoder.layers.7
+
+
+2023-10-11 12:25:25,330 [model.py:251 in load_layer_weights] DEBUG - load_layer_weights: model.decoder.layers.8 to cpu
+2023-10-11 12:25:25,338 [model.py:261 in offload_layer_weights] DEBUG - offload_layer_weights: model.decoder.layers.8
+
+
+2023-10-11 12:25:25,340 [model.py:251 in load_layer_weights] DEBUG - load_layer_weights: model.decoder.layers.9 to cpu
+2023-10-11 12:25:25,353 [model.py:261 in offload_layer_weights] DEBUG - offload_layer_weights: model.decoder.layers.9
+
+
+2023-10-11 12:25:25,355 [model.py:251 in load_layer_weights] DEBUG - load_layer_weights: model.decoder.layers.10 to cpu
+2023-10-11 12:25:25,373 [model.py:261 in offload_layer_weights] DEBUG - offload_layer_weights: model.decoder.layers.10
+
+
+2023-10-11 12:25:25,376 [model.py:251 in load_layer_weights] DEBUG - load_layer_weights: model.decoder.layers.11 to cpu
+2023-10-11 12:25:25,384 [model.py:261 in offload_layer_weights] DEBUG - offload_layer_weights: model.decoder.layers.11
+
+
+2023-10-11 12:25:25,387 [model.py:251 in load_layer_weights] DEBUG - load_layer_weights: model.decoder.final_layer_norm to cpu
+2023-10-11 12:25:25,391 [model.py:261 in offload_layer_weights] DEBUG - offload_layer_weights: model.decoder.final_layer_norm
+
+
+2023-10-11 12:25:25,393 [model.py:251 in load_layer_weights] DEBUG - load_layer_weights: lm_head to cpu
+2023-10-11 12:25:25,406 [model.py:261 in offload_layer_weights] DEBUG - offload_layer_weights: lm_head
+
+
+2023-10-11 12:25:25,414 [test.py:40 in test_hf_gen] INFO - 0.
+2023-10-11 12:25:25,415 [test.py:41 in test_hf_gen] INFO - ----------
+2023-10-11 12:25:25,426 [520681597.py:22 in reset_forward] DEBUG - model.decoder.embed_tokens from test to old.
+2023-10-11 12:25:25,427 [520681597.py:22 in reset_forward] DEBUG - model.decoder.embed_positions from test to old.
+2023-10-11 12:25:25,428 [520681597.py:22 in reset_forward] DEBUG - model.decoder.final_layer_norm from test to old.
+2023-10-11 12:25:25,429 [520681597.py:22 in reset_forward] DEBUG - model.decoder.layers.0 from test to old.
+2023-10-11 12:25:25,430 [520681597.py:22 in reset_forward] DEBUG - model.decoder.layers.1 from test to old.
+2023-10-11 12:25:25,431 [520681597.py:22 in reset_forward] DEBUG - model.decoder.layers.2 from test to old.
+2023-10-11 12:25:25,432 [520681597.py:22 in reset_forward] DEBUG - model.decoder.layers.3 from test to old.
+2023-10-11 12:25:25,434 [520681597.py:22 in reset_forward] DEBUG - model.decoder.layers.4 from test to old.
+2023-10-11 12:25:25,434 [520681597.py:22 in reset_forward] DEBUG - model.decoder.layers.5 from test to old.
+2023-10-11 12:25:25,435 [520681597.py:22 in reset_forward] DEBUG - model.decoder.layers.6 from test to old.
+2023-10-11 12:25:25,436 [520681597.py:22 in reset_forward] DEBUG - model.decoder.layers.7 from test to old.
+2023-10-11 12:25:25,437 [520681597.py:22 in reset_forward] DEBUG - model.decoder.layers.8 from test to old.
+2023-10-11 12:25:25,438 [520681597.py:22 in reset_forward] DEBUG - model.decoder.layers.9 from test to old.
+2023-10-11 12:25:25,439 [520681597.py:22 in reset_forward] DEBUG - model.decoder.layers.10 from test to old.
+2023-10-11 12:25:25,440 [520681597.py:22 in reset_forward] DEBUG - model.decoder.layers.11 from test to old.
+2023-10-11 12:25:25,441 [520681597.py:22 in reset_forward] DEBUG - lm_head from test to old.
+2023-10-11 12:25:25,443 [3420557143.py:50 in to_flexgen_forward] DEBUG - model.decoder.embed_tokens to flexgen forward
+2023-10-11 12:25:25,443 [3420557143.py:50 in to_flexgen_forward] DEBUG - model.decoder.embed_positions to flexgen forward
+2023-10-11 12:25:25,444 [3420557143.py:50 in to_flexgen_forward] DEBUG - model.decoder.layers.0 to flexgen forward
+2023-10-11 12:25:25,445 [3420557143.py:50 in to_flexgen_forward] DEBUG - model.decoder.layers.1 to flexgen forward
+2023-10-11 12:25:25,446 [3420557143.py:50 in to_flexgen_forward] DEBUG - model.decoder.layers.2 to flexgen forward
+2023-10-11 12:25:25,447 [3420557143.py:50 in to_flexgen_forward] DEBUG - model.decoder.layers.3 to flexgen forward
+2023-10-11 12:25:25,448 [3420557143.py:50 in to_flexgen_forward] DEBUG - model.decoder.layers.4 to flexgen forward
+2023-10-11 12:25:25,448 [3420557143.py:50 in to_flexgen_forward] DEBUG - model.decoder.layers.5 to flexgen forward
+2023-10-11 12:25:25,450 [3420557143.py:50 in to_flexgen_forward] DEBUG - model.decoder.layers.6 to flexgen forward
+2023-10-11 12:25:25,451 [3420557143.py:50 in to_flexgen_forward] DEBUG - model.decoder.layers.7 to flexgen forward
+2023-10-11 12:25:25,452 [3420557143.py:50 in to_flexgen_forward] DEBUG - model.decoder.layers.8 to flexgen forward
+2023-10-11 12:25:25,454 [3420557143.py:50 in to_flexgen_forward] DEBUG - model.decoder.layers.9 to flexgen forward
+2023-10-11 12:25:25,455 [3420557143.py:50 in to_flexgen_forward] DEBUG - model.decoder.layers.10 to flexgen forward
+2023-10-11 12:25:25,456 [3420557143.py:50 in to_flexgen_forward] DEBUG - model.decoder.layers.11 to flexgen forward
+2023-10-11 12:25:25,457 [3420557143.py:50 in to_flexgen_forward] DEBUG - model.decoder.final_layer_norm to flexgen forward
+2023-10-11 12:25:25,458 [3420557143.py:50 in to_flexgen_forward] DEBUG - lm_head to flexgen forward
+2023-10-11 12:25:25,501 [connectionpool.py:456 in _make_request] DEBUG - https://huggingface.co:443 "HEAD /facebook/opt-125m/resolve/main/tokenizer_config.json HTTP/1.1" 200 0
+2023-10-11 12:25:25,678 [model.py:251 in load_layer_weights] DEBUG - load_layer_weights: model.decoder.embed_tokens to cpu
+2023-10-11 12:25:25,680 [model.py:251 in load_layer_weights] DEBUG - load_layer_weights: model.decoder.embed_positions to cpu
+2023-10-11 12:25:25,682 [3420557143.py:22 in new_forward] DEBUG - args: ("<class 'torch.Tensor'>: torch.Size([8, 9])",)
+2023-10-11 12:25:25,683 [3420557143.py:23 in new_forward] DEBUG - kwargs: {}
+2023-10-11 12:25:25,684 [3420557143.py:27 in new_forward] DEBUG - layer: model.decoder.embed_tokens, batch: 0
+2023-10-11 12:25:25,687 [3420557143.py:27 in new_forward] DEBUG - layer: model.decoder.embed_tokens, batch: 1
+2023-10-11 12:25:25,689 [3420557143.py:27 in new_forward] DEBUG - layer: model.decoder.embed_tokens, batch: 2
+2023-10-11 12:25:25,691 [3420557143.py:27 in new_forward] DEBUG - layer: model.decoder.embed_tokens, batch: 3
+2023-10-11 12:25:25,693 [3420557143.py:43 in new_forward] DEBUG - outputs after concat: <class '__main__.BatchMixTensor'>: torch.Size([8, 9, 384])
+2023-10-11 12:25:25,694 [model.py:261 in offload_layer_weights] DEBUG - offload_layer_weights: model.decoder.embed_tokens
+
+
+2023-10-11 12:25:25,695 [model.py:251 in load_layer_weights] DEBUG - load_layer_weights: model.decoder.embed_positions to cpu
+2023-10-11 12:25:25,697 [model.py:251 in load_layer_weights] DEBUG - load_layer_weights: model.decoder.layers.0 to cpu
+2023-10-11 12:25:25,702 [3420557143.py:22 in new_forward] DEBUG - args: ("<class 'torch.Tensor'>: torch.Size([8, 9])", "<class 'int'>: 0")
+2023-10-11 12:25:25,702 [3420557143.py:23 in new_forward] DEBUG - kwargs: {}
+2023-10-11 12:25:25,703 [3420557143.py:27 in new_forward] DEBUG - layer: model.decoder.embed_positions, batch: 0
+2023-10-11 12:25:25,705 [3420557143.py:27 in new_forward] DEBUG - layer: model.decoder.embed_positions, batch: 1
+2023-10-11 12:25:25,707 [3420557143.py:27 in new_forward] DEBUG - layer: model.decoder.embed_positions, batch: 2
+2023-10-11 12:25:25,708 [3420557143.py:27 in new_forward] DEBUG - layer: model.decoder.embed_positions, batch: 3
+2023-10-11 12:25:25,710 [3420557143.py:43 in new_forward] DEBUG - outputs after concat: <class '__main__.BatchMixTensor'>: torch.Size([8, 9, 384])
+2023-10-11 12:25:25,711 [model.py:261 in offload_layer_weights] DEBUG - offload_layer_weights: model.decoder.embed_positions
+
+
+2023-10-11 12:27:00,277 [connectionpool.py:456 in _make_request] DEBUG - https://huggingface.co:443 "HEAD /facebook/opt-125m/resolve/main/config.json HTTP/1.1" 200 0
+2023-10-11 12:27:00,408 [connectionpool.py:456 in _make_request] DEBUG - https://huggingface.co:443 "HEAD /facebook/opt-125m/resolve/main/config.json HTTP/1.1" 200 0
+2023-10-11 12:27:00,492 [model.py:159 in is_on_disk] INFO - [], ['lm_head.weight']
+2023-10-11 12:27:00,532 [connectionpool.py:456 in _make_request] DEBUG - https://huggingface.co:443 "HEAD /facebook/opt-125m/resolve/main/config.json HTTP/1.1" 200 0
+2023-10-11 12:27:00,627 [model.py:159 in is_on_disk] INFO - [], ['lm_head.weight']
+2023-10-11 12:27:00,629 [model.py:182 in download] INFO - The whole model has been downloaded an processed to offload_folder: 'offload_dir/facebook.opt-125m'
+2023-10-11 12:27:00,639 [model.py:138 in get_policy_weight_map] DEBUG - model.decoder.embed_tokens, [0. 0. 1.], size_todo: 86630400
+2023-10-11 12:27:00,640 [model.py:138 in get_policy_weight_map] DEBUG - model.decoder.embed_positions, [0. 0. 1.], size_todo: 85056000
+2023-10-11 12:27:00,642 [model.py:138 in get_policy_weight_map] DEBUG - model.decoder.final_layer_norm, [0.00000000e+00 1.91116887e-05 9.99980888e-01], size_todo: 85054464
+2023-10-11 12:27:00,645 [model.py:138 in get_policy_weight_map] DEBUG - model.decoder.layers.0, [0.         0.05002193 0.94997807], size_todo: 77966592
+2023-10-11 12:27:00,648 [model.py:138 in get_policy_weight_map] DEBUG - model.decoder.layers.1, [0.         0.08698539 0.91301461], size_todo: 70878720
+2023-10-11 12:27:00,651 [model.py:138 in get_policy_weight_map] DEBUG - model.decoder.layers.2, [0.         0.11542163 0.88457837], size_todo: 63790848
+2023-10-11 12:27:00,654 [model.py:138 in get_policy_weight_map] DEBUG - model.decoder.layers.3, [0.         0.13797624 0.86202376], size_todo: 56702976
+2023-10-11 12:27:00,657 [model.py:138 in get_policy_weight_map] DEBUG - model.decoder.layers.4, [0.       0.156303 0.843697], size_todo: 49615104
+2023-10-11 12:27:00,660 [model.py:138 in get_policy_weight_map] DEBUG - model.decoder.layers.5, [0.       0.200013 0.799987], size_todo: 42527232
+2023-10-11 12:27:00,664 [model.py:138 in get_policy_weight_map] DEBUG - model.decoder.layers.6, [0.         0.21055017 0.78944983], size_todo: 35439360
+2023-10-11 12:27:00,666 [model.py:138 in get_policy_weight_map] DEBUG - model.decoder.layers.7, [0.         0.24389645 0.75610355], size_todo: 28351488
+2023-10-11 12:27:00,669 [model.py:138 in get_policy_weight_map] DEBUG - model.decoder.layers.8, [0.         0.25000554 0.74999446], size_todo: 21263616
+2023-10-11 12:27:00,672 [model.py:138 in get_policy_weight_map] DEBUG - model.decoder.layers.9, [0.         0.27657765 0.72342235], size_todo: 14175744
+2023-10-11 12:27:00,674 [model.py:138 in get_policy_weight_map] DEBUG - model.decoder.layers.10, [0.         0.27999324 0.72000676], size_todo: 7087872
+2023-10-11 12:27:00,677 [model.py:138 in get_policy_weight_map] DEBUG - model.decoder.layers.11, [0.         0.30186053 0.69813947], size_todo: 0
+2023-10-11 12:27:00,678 [model.py:138 in get_policy_weight_map] DEBUG - lm_head, [0.         0.30186053 0.69813947], size_todo: 0
+2023-10-11 12:27:00,680 [model.py:142 in get_policy_weight_map] INFO - device_map is prepared!
+2023-10-11 12:27:00,686 [model.py:148 in get_policy_weight_map] INFO - CausalLM facebook/opt-125m is to be loaded on: 
+GPU Mem 0.00 GiB (0.00%), CPU Mem 0.07 GiB (30.19%), Disk Mem 0.16 Gib (69.81%)
+2023-10-11 12:27:00,689 [model.py:241 in init_all_weights] DEBUG - init all weights...
+2023-10-11 12:27:00,733 [520681597.py:42 in to_test_forward] DEBUG - model.decoder.embed_tokens to test forward
+2023-10-11 12:27:00,734 [520681597.py:42 in to_test_forward] DEBUG - model.decoder.embed_positions to test forward
+2023-10-11 12:27:00,735 [520681597.py:42 in to_test_forward] DEBUG - model.decoder.final_layer_norm to test forward
+2023-10-11 12:27:00,736 [520681597.py:42 in to_test_forward] DEBUG - model.decoder.layers.0 to test forward
+2023-10-11 12:27:00,737 [520681597.py:42 in to_test_forward] DEBUG - model.decoder.layers.1 to test forward
+2023-10-11 12:27:00,738 [520681597.py:42 in to_test_forward] DEBUG - model.decoder.layers.2 to test forward
+2023-10-11 12:27:00,740 [520681597.py:42 in to_test_forward] DEBUG - model.decoder.layers.3 to test forward
+2023-10-11 12:27:00,741 [520681597.py:42 in to_test_forward] DEBUG - model.decoder.layers.4 to test forward
+2023-10-11 12:27:00,742 [520681597.py:42 in to_test_forward] DEBUG - model.decoder.layers.5 to test forward
+2023-10-11 12:27:00,743 [520681597.py:42 in to_test_forward] DEBUG - model.decoder.layers.6 to test forward
+2023-10-11 12:27:00,744 [520681597.py:42 in to_test_forward] DEBUG - model.decoder.layers.7 to test forward
+2023-10-11 12:27:00,745 [520681597.py:42 in to_test_forward] DEBUG - model.decoder.layers.8 to test forward
+2023-10-11 12:27:00,746 [520681597.py:42 in to_test_forward] DEBUG - model.decoder.layers.9 to test forward
+2023-10-11 12:27:00,747 [520681597.py:42 in to_test_forward] DEBUG - model.decoder.layers.10 to test forward
+2023-10-11 12:27:00,748 [520681597.py:42 in to_test_forward] DEBUG - model.decoder.layers.11 to test forward
+2023-10-11 12:27:00,749 [520681597.py:42 in to_test_forward] DEBUG - lm_head to test forward
+2023-10-11 12:27:00,793 [connectionpool.py:456 in _make_request] DEBUG - https://huggingface.co:443 "HEAD /facebook/opt-125m/resolve/main/tokenizer_config.json HTTP/1.1" 200 0
+2023-10-11 12:27:00,967 [model.py:251 in load_layer_weights] DEBUG - load_layer_weights: model.decoder.embed_tokens to cpu
+2023-10-11 12:27:00,969 [model.py:261 in offload_layer_weights] DEBUG - offload_layer_weights: model.decoder.embed_tokens
+
+
+2023-10-11 12:27:00,971 [model.py:251 in load_layer_weights] DEBUG - load_layer_weights: model.decoder.embed_positions to cpu
+2023-10-11 12:27:00,973 [model.py:261 in offload_layer_weights] DEBUG - offload_layer_weights: model.decoder.embed_positions
+
+
+2023-10-11 12:27:00,974 [model.py:251 in load_layer_weights] DEBUG - load_layer_weights: model.decoder.layers.0 to cpu
+2023-10-11 12:27:00,986 [model.py:261 in offload_layer_weights] DEBUG - offload_layer_weights: model.decoder.layers.0
+
+
+2023-10-11 12:27:00,989 [model.py:251 in load_layer_weights] DEBUG - load_layer_weights: model.decoder.layers.1 to cpu
+2023-10-11 12:27:00,998 [model.py:261 in offload_layer_weights] DEBUG - offload_layer_weights: model.decoder.layers.1
+
+
+2023-10-11 12:27:01,000 [model.py:251 in load_layer_weights] DEBUG - load_layer_weights: model.decoder.layers.2 to cpu
+2023-10-11 12:27:01,009 [model.py:261 in offload_layer_weights] DEBUG - offload_layer_weights: model.decoder.layers.2
+
+
+2023-10-11 12:27:01,013 [model.py:251 in load_layer_weights] DEBUG - load_layer_weights: model.decoder.layers.3 to cpu
+2023-10-11 12:27:01,024 [model.py:261 in offload_layer_weights] DEBUG - offload_layer_weights: model.decoder.layers.3
+
+
+2023-10-11 12:27:01,027 [model.py:251 in load_layer_weights] DEBUG - load_layer_weights: model.decoder.layers.4 to cpu
+2023-10-11 12:27:01,037 [model.py:261 in offload_layer_weights] DEBUG - offload_layer_weights: model.decoder.layers.4
+
+
+2023-10-11 12:27:01,041 [model.py:251 in load_layer_weights] DEBUG - load_layer_weights: model.decoder.layers.5 to cpu
+2023-10-11 12:27:01,051 [model.py:261 in offload_layer_weights] DEBUG - offload_layer_weights: model.decoder.layers.5
+
+
+2023-10-11 12:27:01,054 [model.py:251 in load_layer_weights] DEBUG - load_layer_weights: model.decoder.layers.6 to cpu
+2023-10-11 12:27:01,064 [model.py:261 in offload_layer_weights] DEBUG - offload_layer_weights: model.decoder.layers.6
+
+
+2023-10-11 12:27:01,066 [model.py:251 in load_layer_weights] DEBUG - load_layer_weights: model.decoder.layers.7 to cpu
+2023-10-11 12:27:01,074 [model.py:261 in offload_layer_weights] DEBUG - offload_layer_weights: model.decoder.layers.7
+
+
+2023-10-11 12:27:01,076 [model.py:251 in load_layer_weights] DEBUG - load_layer_weights: model.decoder.layers.8 to cpu
+2023-10-11 12:27:01,083 [model.py:261 in offload_layer_weights] DEBUG - offload_layer_weights: model.decoder.layers.8
+
+
+2023-10-11 12:27:01,086 [model.py:251 in load_layer_weights] DEBUG - load_layer_weights: model.decoder.layers.9 to cpu
+2023-10-11 12:27:01,093 [model.py:261 in offload_layer_weights] DEBUG - offload_layer_weights: model.decoder.layers.9
+
+
+2023-10-11 12:27:01,096 [model.py:251 in load_layer_weights] DEBUG - load_layer_weights: model.decoder.layers.10 to cpu
+2023-10-11 12:27:01,103 [model.py:261 in offload_layer_weights] DEBUG - offload_layer_weights: model.decoder.layers.10
+
+
+2023-10-11 12:27:01,106 [model.py:251 in load_layer_weights] DEBUG - load_layer_weights: model.decoder.layers.11 to cpu
+2023-10-11 12:27:01,112 [model.py:261 in offload_layer_weights] DEBUG - offload_layer_weights: model.decoder.layers.11
+
+
+2023-10-11 12:27:01,115 [model.py:251 in load_layer_weights] DEBUG - load_layer_weights: model.decoder.final_layer_norm to cpu
+2023-10-11 12:27:01,116 [model.py:261 in offload_layer_weights] DEBUG - offload_layer_weights: model.decoder.final_layer_norm
+
+
+2023-10-11 12:27:01,118 [model.py:251 in load_layer_weights] DEBUG - load_layer_weights: lm_head to cpu
+2023-10-11 12:27:01,127 [model.py:261 in offload_layer_weights] DEBUG - offload_layer_weights: lm_head
+
+
+2023-10-11 12:27:01,134 [test.py:40 in test_hf_gen] INFO - 0.
+2023-10-11 12:27:01,135 [test.py:41 in test_hf_gen] INFO - ----------
+2023-10-11 12:27:01,147 [520681597.py:22 in reset_forward] DEBUG - model.decoder.embed_tokens from test to old.
+2023-10-11 12:27:01,148 [520681597.py:22 in reset_forward] DEBUG - model.decoder.embed_positions from test to old.
+2023-10-11 12:27:01,148 [520681597.py:22 in reset_forward] DEBUG - model.decoder.final_layer_norm from test to old.
+2023-10-11 12:27:01,149 [520681597.py:22 in reset_forward] DEBUG - model.decoder.layers.0 from test to old.
+2023-10-11 12:27:01,150 [520681597.py:22 in reset_forward] DEBUG - model.decoder.layers.1 from test to old.
+2023-10-11 12:27:01,151 [520681597.py:22 in reset_forward] DEBUG - model.decoder.layers.2 from test to old.
+2023-10-11 12:27:01,152 [520681597.py:22 in reset_forward] DEBUG - model.decoder.layers.3 from test to old.
+2023-10-11 12:27:01,153 [520681597.py:22 in reset_forward] DEBUG - model.decoder.layers.4 from test to old.
+2023-10-11 12:27:01,154 [520681597.py:22 in reset_forward] DEBUG - model.decoder.layers.5 from test to old.
+2023-10-11 12:27:01,155 [520681597.py:22 in reset_forward] DEBUG - model.decoder.layers.6 from test to old.
+2023-10-11 12:27:01,156 [520681597.py:22 in reset_forward] DEBUG - model.decoder.layers.7 from test to old.
+2023-10-11 12:27:01,157 [520681597.py:22 in reset_forward] DEBUG - model.decoder.layers.8 from test to old.
+2023-10-11 12:27:01,158 [520681597.py:22 in reset_forward] DEBUG - model.decoder.layers.9 from test to old.
+2023-10-11 12:27:01,159 [520681597.py:22 in reset_forward] DEBUG - model.decoder.layers.10 from test to old.
+2023-10-11 12:27:01,159 [520681597.py:22 in reset_forward] DEBUG - model.decoder.layers.11 from test to old.
+2023-10-11 12:27:01,160 [520681597.py:22 in reset_forward] DEBUG - lm_head from test to old.
+2023-10-11 12:27:01,161 [3420557143.py:50 in to_flexgen_forward] DEBUG - model.decoder.embed_tokens to flexgen forward
+2023-10-11 12:27:01,163 [3420557143.py:50 in to_flexgen_forward] DEBUG - model.decoder.embed_positions to flexgen forward
+2023-10-11 12:27:01,163 [3420557143.py:50 in to_flexgen_forward] DEBUG - model.decoder.layers.0 to flexgen forward
+2023-10-11 12:27:01,164 [3420557143.py:50 in to_flexgen_forward] DEBUG - model.decoder.layers.1 to flexgen forward
+2023-10-11 12:27:01,165 [3420557143.py:50 in to_flexgen_forward] DEBUG - model.decoder.layers.2 to flexgen forward
+2023-10-11 12:27:01,166 [3420557143.py:50 in to_flexgen_forward] DEBUG - model.decoder.layers.3 to flexgen forward
+2023-10-11 12:27:01,167 [3420557143.py:50 in to_flexgen_forward] DEBUG - model.decoder.layers.4 to flexgen forward
+2023-10-11 12:27:01,168 [3420557143.py:50 in to_flexgen_forward] DEBUG - model.decoder.layers.5 to flexgen forward
+2023-10-11 12:27:01,170 [3420557143.py:50 in to_flexgen_forward] DEBUG - model.decoder.layers.6 to flexgen forward
+2023-10-11 12:27:01,170 [3420557143.py:50 in to_flexgen_forward] DEBUG - model.decoder.layers.7 to flexgen forward
+2023-10-11 12:27:01,171 [3420557143.py:50 in to_flexgen_forward] DEBUG - model.decoder.layers.8 to flexgen forward
+2023-10-11 12:27:01,172 [3420557143.py:50 in to_flexgen_forward] DEBUG - model.decoder.layers.9 to flexgen forward
+2023-10-11 12:27:01,172 [3420557143.py:50 in to_flexgen_forward] DEBUG - model.decoder.layers.10 to flexgen forward
+2023-10-11 12:27:01,173 [3420557143.py:50 in to_flexgen_forward] DEBUG - model.decoder.layers.11 to flexgen forward
+2023-10-11 12:27:01,174 [3420557143.py:50 in to_flexgen_forward] DEBUG - model.decoder.final_layer_norm to flexgen forward
+2023-10-11 12:27:01,175 [3420557143.py:50 in to_flexgen_forward] DEBUG - lm_head to flexgen forward
+2023-10-11 12:27:01,219 [connectionpool.py:456 in _make_request] DEBUG - https://huggingface.co:443 "HEAD /facebook/opt-125m/resolve/main/tokenizer_config.json HTTP/1.1" 200 0
+2023-10-11 12:27:01,358 [model.py:251 in load_layer_weights] DEBUG - load_layer_weights: model.decoder.embed_tokens to cpu
+2023-10-11 12:27:01,360 [model.py:251 in load_layer_weights] DEBUG - load_layer_weights: model.decoder.embed_positions to cpu
+2023-10-11 12:27:01,361 [3420557143.py:22 in new_forward] DEBUG - args: ("<class 'torch.Tensor'>: torch.Size([8, 9])",)
+2023-10-11 12:27:01,362 [3420557143.py:23 in new_forward] DEBUG - kwargs: {}
+2023-10-11 12:27:01,363 [3420557143.py:27 in new_forward] DEBUG - layer: model.decoder.embed_tokens, batch: 0
+2023-10-11 12:27:01,365 [3420557143.py:27 in new_forward] DEBUG - layer: model.decoder.embed_tokens, batch: 1
+2023-10-11 12:27:01,367 [3420557143.py:27 in new_forward] DEBUG - layer: model.decoder.embed_tokens, batch: 2
+2023-10-11 12:27:01,368 [3420557143.py:27 in new_forward] DEBUG - layer: model.decoder.embed_tokens, batch: 3
+2023-10-11 12:27:01,371 [3420557143.py:43 in new_forward] DEBUG - outputs after concat: <class '__main__.BatchMixTensor'>: torch.Size([8, 9, 384])
+2023-10-11 12:27:01,371 [model.py:261 in offload_layer_weights] DEBUG - offload_layer_weights: model.decoder.embed_tokens
+
+
+2023-10-11 12:27:01,373 [model.py:251 in load_layer_weights] DEBUG - load_layer_weights: model.decoder.embed_positions to cpu
+2023-10-11 12:27:01,375 [model.py:251 in load_layer_weights] DEBUG - load_layer_weights: model.decoder.layers.0 to cpu
+2023-10-11 12:27:01,380 [3420557143.py:22 in new_forward] DEBUG - args: ("<class 'torch.Tensor'>: torch.Size([8, 9])", "<class 'int'>: 0")
+2023-10-11 12:27:01,381 [3420557143.py:23 in new_forward] DEBUG - kwargs: {}
+2023-10-11 12:27:01,382 [3420557143.py:27 in new_forward] DEBUG - layer: model.decoder.embed_positions, batch: 0
+2023-10-11 12:27:01,384 [3420557143.py:27 in new_forward] DEBUG - layer: model.decoder.embed_positions, batch: 1
+2023-10-11 12:27:01,385 [3420557143.py:27 in new_forward] DEBUG - layer: model.decoder.embed_positions, batch: 2
+2023-10-11 12:27:01,387 [3420557143.py:27 in new_forward] DEBUG - layer: model.decoder.embed_positions, batch: 3
+2023-10-11 12:27:01,389 [3420557143.py:43 in new_forward] DEBUG - outputs after concat: <class '__main__.BatchMixTensor'>: torch.Size([8, 9, 384])
+2023-10-11 12:27:01,390 [model.py:261 in offload_layer_weights] DEBUG - offload_layer_weights: model.decoder.embed_positions
+
+
+2023-10-11 12:27:01,394 [model.py:251 in load_layer_weights] DEBUG - load_layer_weights: model.decoder.layers.0 to cpu
+2023-10-11 12:27:01,399 [model.py:251 in load_layer_weights] DEBUG - load_layer_weights: model.decoder.layers.1 to cpu
+2023-10-11 12:27:01,403 [3420557143.py:22 in new_forward] DEBUG - args: ("<class '__main__.BatchMixTensor'>: torch.Size([8, 9, 384])",)
+2023-10-11 12:27:01,405 [3420557143.py:23 in new_forward] DEBUG - kwargs: {'attention_mask': "<class 'torch.Tensor'>: torch.Size([8, 1, 9, 9])", 'layer_head_mask': "<class 'NoneType'>: None", 'past_key_value': "<class 'NoneType'>: None", 'output_attentions': "<class 'bool'>: False", 'use_cache': "<class 'bool'>: True"}
+2023-10-11 12:27:01,406 [3420557143.py:27 in new_forward] DEBUG - layer: model.decoder.layers.0, batch: 0
