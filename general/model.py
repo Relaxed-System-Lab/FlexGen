@@ -52,7 +52,7 @@ class ModelPolicyLoader:
     def __init__(self, 
         checkpoint: str, 
         policy: Policy, 
-        offload_dir: str = 'offload_dir'
+        offload_dir: str = 'weights_offload_dir'
     ):
         self.checkpoint = checkpoint
         self.policy = policy 
