@@ -4,7 +4,7 @@ import torch
 import functools 
 import contextlib
 
-from minibatch import get_size_info, get_kth_batch_inputs, concat_outputs
+from minibatch import get_size_info, load_kth_batch_inputs, concat_outputs
 from model import ModelPolicyLoader 
 from utils import logging, get_module_from_name
 
@@ -84,8 +84,8 @@ def to_flexgen_forward(mpl, j, compute_device):
             # output = old_forward(*args, **kwargs)
             # logger.debug(f'output: {get_size_info(output)}')
 
-            args_0 = get_kth_batch_inputs(args, 0, ngb)
-            kwargs_0 = get_kth_batch_inputs(kwargs, 0, ngb)
+            args_0 = load_kth_batch_inputs(args, 0, ngb)
+            kwargs_0 = load_kth_batch_inputs(kwargs, 0, ngb)
             logger.debug(f'args_0: {get_size_info(args_0)}')
             logger.debug(f'kwargs_0: {get_size_info(kwargs_0)}')
             # output_0 = old_forward(*args_0, **kwargs_0)
@@ -96,8 +96,8 @@ def to_flexgen_forward(mpl, j, compute_device):
                 logger.debug(f'layer: {layer_name}, batch: {k}')
 
                 # 'pre' fwd: load curr & next inputs (activations, KV cache), store & offload prev 
-                args_k = get_kth_batch_inputs(args, k, ngb)
-                kwargs_k = get_kth_batch_inputs(kwargs, k, ngb)
+                args_k = load_kth_batch_inputs(args, k, ngb)
+                kwargs_k = load_kth_batch_inputs(kwargs, k, ngb)
 
                 # TODO: load args, kwargs to compute device
 

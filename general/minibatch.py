@@ -21,11 +21,11 @@ def get_size_info(obj): # recursive
         logger.warning(f'inputs: {obj} of type \'{type(obj)}\' is not implemented.')
         return obj
 
-def get_kth_batch_inputs(inputs, k, ngb): # for both args, kwargs, with a nested structure of tuple/list/dict/Tensor
+def load_kth_batch_inputs(inputs, k, ngb): # for both args, kwargs, with a nested structure of tuple/list/dict/Tensor
     if isinstance(inputs, (tuple, list)): # e.g. args
-        return honor_type(inputs, (get_kth_batch_inputs(inp, k, ngb) for inp in inputs))
+        return honor_type(inputs, (load_kth_batch_inputs(inp, k, ngb) for inp in inputs))
     elif isinstance(inputs, Mapping): # e.g. kwargs
-        return type(inputs)({key:get_kth_batch_inputs(value, k, ngb) for key, value in inputs.items()})
+        return type(inputs)({key:load_kth_batch_inputs(value, k, ngb) for key, value in inputs.items()})
     elif isinstance(inputs, torch.Tensor):
         mini_size = inputs.size(0) // ngb
         return inputs[k * mini_size:(k + 1) * mini_size]
