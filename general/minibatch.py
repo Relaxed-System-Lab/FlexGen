@@ -25,6 +25,21 @@ def get_type_size_info(obj): # recursive
         logger.warning(f'inputs: {obj} of type \'{type(obj)}\' is not implemented.')
         return f'{type(obj)}: {obj}'
 
+def to_compute_device(obj): # recursive
+    if isinstance(obj, (tuple, list)):
+        return honor_type(obj, (to_compute_device(o) for o in obj))
+    elif isinstance(obj, Mapping):
+        return type(obj)({k:to_compute_device(v) for k, v in obj.items()})
+    elif isinstance(obj, torch.Tensor):
+        return obj
+    elif isinstance(obj, (MixTensor, BatchMixTensor)):
+        return obj.to_tensor()
+
+    elif isinstance(obj, (int, bool, type(None))): 
+        return obj
+    else:
+        logger.warning(f'inputs: {obj} of type \'{type(obj)}\' is not implemented.')
+        return obj
 
 def to_mixed_device(obj, policy, prefix): 
     if isinstance(obj, tuple) and len(obj) == 2 and isinstance(obj[0], torch.Tensor) and isinstance(obj[1], torch.Tensor): # KV cache
@@ -35,7 +50,7 @@ def to_mixed_device(obj, policy, prefix):
                 'cpu':policy.cache_cpu_percent, 
                 'disk':policy.cache_disk_percent, 
             }, 
-            file_path=f'{prefix}_key.dat'
+            file_path=f'{prefix}.key.dat'
         )
         m1 = MixTensor.from_tensor(
             obj[1], 
@@ -44,12 +59,13 @@ def to_mixed_device(obj, policy, prefix):
                 'cpu':policy.cache_cpu_percent, 
                 'disk':policy.cache_disk_percent, 
             }, 
-            file_path=f'{prefix}_value.dat'
+            file_path=f'{prefix}.value.dat'
         )
         return (m0, m1)
     elif isinstance(obj, torch.Tensor):
         return MixTensor.from_tensor(
-            obj, percents={
+            obj, 
+            percents={
                 'cuda':policy.act_gpu_percent, 
                 'cpu':policy.act_cpu_percent, 
                 'disk':policy.act_disk_percent, 
@@ -57,7 +73,7 @@ def to_mixed_device(obj, policy, prefix):
             file_path=f'{prefix}.dat'
         )
     elif isinstance(obj, tuple):
-        return honor_type(obj, (to_mixed_device(o, policy, f'{prefix}[{i}]') for i, o in enumerate(obj)))
+        return tuple(to_mixed_device(o, policy, f'{prefix}.{i}') for i, o in enumerate(obj))
     else:
         logger.warning(f'inputs: {obj} of type \'{type(obj)}\' is not implemented.')
         return obj
@@ -81,9 +97,9 @@ def concat_outputs(outputs): # concatenate K outputs to one output
                     ans.append(BatchMixTensor(elem))
                 elif isinstance(elem[0], tuple):
                     ans.append(f(elem))
-                else:
-                    logger.warning(f'outputs: {elem[0]} of type \'{type(elem[0])}\' is not implemented.')
-                    ans.append(elem[0])
+                # else:
+                #     logger.warning(f'outputs: {elem[0]} of type \'{type(elem[0])}\' is not implemented.')
+                #     ans.append(elem[0])
             return tuple(ans)
 
         return f(outputs)
@@ -97,10 +113,10 @@ def load_kth_batch_inputs(inputs, k, ngb): # for both args, kwargs, with a neste
     elif isinstance(inputs, torch.Tensor):
         mini_size = inputs.size(0) // ngb
         return inputs[k * mini_size:(k + 1) * mini_size]
-    elif isinstance(inputs, MixTensor):
-        inputs = inputs.to_tensor()
-        mini_size = inputs.size(0) // ngb
-        return inputs[k * mini_size:(k + 1) * mini_size]
+    # elif isinstance(inputs, MixTensor):
+    #     inputs = inputs.to_tensor()
+    #     mini_size = inputs.size(0) // ngb
+    #     return inputs[k * mini_size:(k + 1) * mini_size]
     elif isinstance(inputs, BatchMixTensor):
         mini_batch = inputs.batches[k]
         return mini_batch.to_tensor()

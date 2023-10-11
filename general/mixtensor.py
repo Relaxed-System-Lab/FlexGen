@@ -1,6 +1,7 @@
 from typing import Mapping, Tuple, Iterable
 import numpy as np 
 import os 
+import shutil 
 import torch
 from math import floor
 
@@ -60,7 +61,7 @@ class MixTensor:
         percents: Mapping[str, float],
         file_path: str 
     ):
-        split_dim = cls.get_split_dim(tensor) 
+        split_dim = 0# cls.get_split_dim(tensor) 
         device = tensor.device 
         shape = tensor.shape
         dtype = tensor.dtype
@@ -71,12 +72,12 @@ class MixTensor:
         c_data = c_data.to('cpu') if c_data.numel() else None
         if d_data.numel():
             d_data = d_data.cpu().numpy()
-            shape = d_data.shape
+            np_shape = d_data.shape
             np_dtype = d_data.dtype 
 
-            fp = np.memmap(file_path, mode="w+", shape=shape, dtype=np_dtype)
+            fp = np.memmap(file_path, mode="w+", shape=np_shape, dtype=np_dtype)
             fp[:] = d_data[:]
-            d_data = (shape, np_dtype)
+            d_data = (np_shape, np_dtype)
         else:
             d_data = None 
         mix_data = (g_data, c_data, d_data)
@@ -90,11 +91,6 @@ class MixTensor:
             file_path=file_path,
             dtype=dtype
         )
-
-    @classmethod 
-    def from_mixtensor(cls, mix_tensor):
-        self = mix_tensor 
-        return self 
 
     def to_tensor(self):
         g_data, c_data, d_data = self.mix_data 
@@ -121,54 +117,56 @@ class MixTensor:
 
     def __add__(self, mix_tensor):
         assert self.shape == mix_tensor.shape and type(self) == type(mix_tensor) # is same shape mix tensor
-        res = self.to_tensor() + mix_tensor.to_tensor() 
+        res = self.to_tensor() + mix_tensor.to_tensor() # TODO: self.tensor
         return self.from_tensor(res, self.percents, self.file_path)
 
 
 class BatchMixTensor:
     def __init__(self, batches: Iterable[MixTensor]):
-        self.dtype = batches[0].dtype
-        self.device = batches[0].device
         self.batches = batches 
 
         self.shape = self.size()
+        self.dtype = batches[0].dtype
+        self.device = batches[0].device
 
-    def __getitem__(self, i):
-        return self.batches[i]
+    # def __getitem__(self, i):
+    #     return self.batches[i]
     
-    def __setitem__(self, i, mt: MixTensor):
-        self.batches[i] = mt
+    # def __setitem__(self, i, mt: MixTensor):
+    #     self.batches[i] = mt
 
-    def __len__(self):
-        return len(self.batches)
+    # def __len__(self):
+    #     return len(self.batches)
     
     def size(self):
-        shape = list(self[0].size()) 
-        shape[0] *= len(self)
+        shape = list(self.batches[0].size()) 
+        shape[0] *= len(self.batches)
         return torch.Size(shape)
 
     def __add__(self, bmt):
-        for k in range(len(self)): # K batches 
+        for k in range(len(self.batches)): 
             # TODO flexgen: parallelly load k+1
-            self_k = self[k].to_tensor()
-            bmt_k = bmt[k].to_tensor()
+            self_k = self.batches[k].to_tensor()
+            bmt_k = bmt.batches[k].to_tensor()
             res = self_k + bmt_k 
-            self[k] = MixTensor.from_tensor(res, self[k].percents, self[k].file_path)
+            self.batches[k] = MixTensor.from_tensor(res, self.batches[k].percents, self.batches[k].file_path)
         return self 
 
     def contiguous(self):
-        tensor = []
-        for mt in self:
-            tensor.append(mt.to_tensor())
-        return torch.cat(tensor)
+        return self.to_tensor()
 
+    def to_tensor(self):
+        tensor = []
+        for mt in self.batches:
+            tensor.append(mt.to_tensor())
+        return torch.cat(tensor, dim=0)
 
 
 if __name__ == '__main__':
     
-    x = torch.tensor([1,2,3])
+    x = torch.rand(8, 500, 64, dtype=torch.float32)
     m = MixTensor.from_tensor(x, percents={'cuda':0, 'cpu':0.5, 'disk':0.5}, file_path='test/m.dat')
     m2 = MixTensor.from_tensor(x, percents={'cuda':0, 'cpu':0.5, 'disk':0.5}, file_path='test/m2.dat')
     m = m + m2
-    print(m.to_tensor())
+    print((m.to_tensor() - 2 * x).abs().sum() )
 
