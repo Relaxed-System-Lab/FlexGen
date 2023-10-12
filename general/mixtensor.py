@@ -168,10 +168,8 @@ class BatchMixTensor:
             tensor.append(mt.to_tensor())
         return torch.cat(tensor, dim=0)
 
-    def view(self, shape):
-        # TODO: 
-        pass 
-        # return self.to_tensor().view(shape)
+    def view(self, shape): # for codegen tfm fwd
+        return self.to_tensor().view(shape)
 
 if __name__ == '__main__':
     

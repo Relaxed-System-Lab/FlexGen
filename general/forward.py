@@ -6,7 +6,7 @@ import torch
 import functools 
 import contextlib
 
-from minibatch import get_type_size_info, to_mixed_device, load_kth_batch_inputs, concat_outputs
+from minibatch import get_type_size_info, to_compute_device, to_mixed_device, load_kth_batch_inputs, concat_outputs
 from model import ModelPolicyLoader 
 from utils import logging, get_module_from_name
 
@@ -110,6 +110,11 @@ def to_flexgen_forward(mpl, j, compute_device, args_offload_dir):
 
             output = concat_outputs(outputs)
             # output = to_compute_device(output)
+
+            # last layer
+            if layer_name == mpl.layer_names[-1]: 
+                output = to_compute_device(output)
+                
             logger.debug(f'outputs after concat: {get_type_size_info(output)}')  
 
         # post fwd: free curr weights

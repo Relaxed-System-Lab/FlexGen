@@ -2,6 +2,7 @@
 # Support for general models (instead of hard-coded OPT)
 
 TODO:
+- policy solver
 - cuda streams
 - profiler
 - safetensors
