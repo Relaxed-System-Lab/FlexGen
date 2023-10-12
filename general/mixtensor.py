@@ -64,7 +64,7 @@ class MixTensor:
         percents: Mapping[str, float],
         file_path: str 
     ):
-        split_dim = 0# cls.get_split_dim(tensor) 
+        split_dim = cls.get_split_dim(tensor) 
         device = tensor.device 
         shape = tensor.shape
         dtype = tensor.dtype
