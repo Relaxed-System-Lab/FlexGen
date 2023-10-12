@@ -136,7 +136,7 @@ def flexgen(checkpoint, policy, args_offload_dir = 'args_offload_dir'):
     # test run, get layer order
     call_layer_log = []
     with test(mpl, call_layer_log):
-        from test import test_hf_gen
+        from utils.test import test_hf_gen
         test_hf_gen(mpl.checkpoint, mpl.model, 1,1, prompts=['0'])
 
     assert len(call_layer_log) == len(mpl.layer_names) and set(call_layer_log) == set(mpl.layer_names)
