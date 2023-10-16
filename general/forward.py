@@ -91,8 +91,8 @@ def to_flexgen_forward(mpl, j, compute_device, args_offload_dir):
             for k in range(ngb):
 
                 # 'pre' fwd: load curr & next inputs (activations, KV cache) to compute device
-                args_k = load_kth_batch_inputs(args, k, ngb)
-                kwargs_k = load_kth_batch_inputs(kwargs, k, ngb)
+                args_k = load_kth_batch_inputs(args, k, ngb) # TODO: CUDA stream
+                kwargs_k = load_kth_batch_inputs(kwargs, k, ngb) # TODO: CUDA stream 
 
                 # the k-th fwd pass
                 output = old_forward(*args_k, **kwargs_k)
@@ -107,8 +107,10 @@ def to_flexgen_forward(mpl, j, compute_device, args_offload_dir):
                              f'kwargs: {get_type_size_info(kwargs_k)}, '
                              f'output: {get_type_size_info(output)}')
                 outputs.append(output) 
+                # output: (act: mixtensor, (k: mixtensor, v: mixtensor))
+                # outputs: K * (0, (1, 2))
 
-            output = concat_outputs(outputs)
+            output = concat_outputs(outputs) 
             # output = to_compute_device(output)
 
             # last layer
@@ -146,8 +148,11 @@ def flexgen(checkpoint, policy, args_offload_dir = 'args_offload_dir'):
     for j, _ in enumerate(mpl.layer_names):
         compute_device = 'cpu'
         to_flexgen_forward(mpl, j, compute_device, args_offload_dir)
-    yield mpl.model 
-    for layer_name in mpl.layer_names:
-        reset_forward(mpl.model, layer_name)
-    shutil.rmtree(args_offload_dir)
+    
+    try:
+        yield mpl.model 
+    finally:
+        for layer_name in mpl.layer_names:
+            reset_forward(mpl.model, layer_name)
+        shutil.rmtree(args_offload_dir)
         

@@ -126,7 +126,7 @@ class MixTensor:
 
 class BatchMixTensor:
     def __init__(self, batches: Iterable[MixTensor]):
-        self.batches = batches 
+        self.batches = batches # [k]
 
         self.shape = self.size()
         self.dtype = batches[0].dtype
