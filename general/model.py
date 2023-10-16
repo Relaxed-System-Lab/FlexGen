@@ -1,6 +1,7 @@
 # model: 1) load/offload layer weights, 2) init weights by policy
 
 import os
+import shutil
 import numpy as np
 import json
 from tqdm import tqdm 
@@ -58,6 +59,7 @@ class ModelPolicyLoader:
         self.policy = policy 
         self.offload_dir = offload_dir 
         self.offload_folder = os.path.join(offload_dir, checkpoint.replace('/', '.'))
+        logger.info(f'weights offload folder: {self.offload_folder}')
 
         self.model = self.get_empty_model()
 
@@ -156,20 +158,24 @@ class ModelPolicyLoader:
         model = self.get_empty_model()
         tensor_names = [n for n, _ in named_module_tensors(model, include_buffers=False, recurse=True)]
         dat_file_names = [file[:-4] for file in os.listdir(self.offload_folder) if file.endswith('.dat')]
-        logger.info(f'{sorted(list(set(tensor_names) - set(dat_file_names)))}, {sorted(list(set(dat_file_names) - set(tensor_names)))}')
+        # logger.info(f'{sorted(list(set(tensor_names) - set(dat_file_names)))}, {sorted(list(set(dat_file_names) - set(tensor_names)))}')
         return len(set(tensor_names) - set(dat_file_names)) == 0
         
     def download(self):
         if not self.is_on_disk():
-            disk_weight_map = {name:'disk' for name in named_module_tensors(self.model, include_buffers=False, recurse=True)}
             try:
+                if os.path.exists(self.offload_folder):
+                    shutil.rmtree(self.offload_folder)
+
+                logger.info('downloading from hugging face...')
                 AutoModelForCausalLM.from_pretrained(
                     self.checkpoint, 
-                    device_map=disk_weight_map, 
+                    device_map={'': 'disk'}, 
                     offload_folder=self.offload_folder, 
                     offload_state_dict=True,
                     use_safetensors=False, # download .bin files, for now
                 )
+                logger.info('downloaded')
             except:
                 pass
 
@@ -244,8 +250,9 @@ class ModelPolicyLoader:
                 self.load_module_tensor(tensor_name, device) 
 
     def __del__(self):
-        for tensor_name, _ in tqdm(self.device_map.items()):
-            self.load_module_tensor(tensor_name, 'meta') 
+        if hasattr(self, 'device_map'):
+            for tensor_name, _ in tqdm(self.device_map.items()):
+                self.load_module_tensor(tensor_name, 'meta') 
 
     def load_layer_weights(self, layer_name, compute_device):
         logger.debug(f'load_layer_weights: {layer_name} to {compute_device}')
