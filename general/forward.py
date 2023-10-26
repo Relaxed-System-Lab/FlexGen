@@ -101,7 +101,6 @@ def flexgen(checkpoint, policy, args_offload_dir = 'args_offload_dir'):
     # init model 
     from model import ModelPolicyLoader
     mpl = ModelPolicyLoader(checkpoint, policy)
-    mpl.init_all_weights() # init 
 
     # rewrite layer forward
     for j, _ in enumerate(mpl.layer_names):

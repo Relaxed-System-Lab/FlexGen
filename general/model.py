@@ -333,7 +333,8 @@ class MetaModel:
 class ModelPolicyLoader(MetaModel):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-
+        self.init_all_weights() 
+        
     def load_module_tensor(self, tensor_name, device):
         tensor = get_module_from_name(self.model, tensor_name)
         if tensor.device == device: return 
