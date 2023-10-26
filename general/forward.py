@@ -27,38 +27,6 @@ def reset_forward(model, layer_name):
         delattr(layer, "_test_old_forward")
         logger.debug(f'{layer_name} from test to old.')
 
-def to_test_forward(mpl, layer_name, call_layer_log):
-    layer = get_module_from_name(mpl.model, layer_name) 
-    compute_device = 'cpu' 
-    layer._test_old_forward = old_forward = layer.forward 
-
-    @functools.wraps(old_forward)
-    def new_forward(*args, **kwargs):
-        mpl.load_layer_weights(layer_name, compute_device) 
-
-        call_layer_log.append(layer_name)  # 
-
-        with torch.no_grad():
-            output = old_forward(*args, **kwargs)
-
-        mpl.offload_layer_weights(layer_name)
-        return output
-
-    layer.forward = new_forward
-    logger.debug(f'{layer_name} to test forward') 
-    
-@contextlib.contextmanager
-def test(mpl, call_layer_log):
-    model = mpl.model
-    layer_names = mpl.layer_names
-
-    # test run to get layer calling order
-    for layer_name in layer_names:
-        to_test_forward(mpl, layer_name, call_layer_log)
-    yield 
-    for layer_name in layer_names:
-        reset_forward(model, layer_name)
-
 def to_flexgen_forward(mpl, j, compute_device, args_offload_dir):
     # rewrite the j-th layer's forward
     layer_name = mpl.layer_names[j]
@@ -134,15 +102,6 @@ def flexgen(checkpoint, policy, args_offload_dir = 'args_offload_dir'):
     from model import ModelPolicyLoader
     mpl = ModelPolicyLoader(checkpoint, policy)
     mpl.init_all_weights() # init 
-
-    # test run, get layer order
-    call_layer_log = []
-    with test(mpl, call_layer_log):
-        from utils.test import test_hf_gen
-        test_hf_gen(mpl.checkpoint, mpl.model, 1,1, prompts=['0'])
-
-    assert len(call_layer_log) == len(mpl.layer_names) and set(call_layer_log) == set(mpl.layer_names)
-    mpl.layer_names = call_layer_log
 
     # rewrite layer forward
     for j, _ in enumerate(mpl.layer_names):

@@ -5,10 +5,13 @@ import shutil
 import numpy as np
 import json
 from tqdm import tqdm 
+import contextlib
+import functools
 
 import torch 
 from torch.nn import Module, ModuleList
-from transformers import AutoModelForCausalLM, AutoConfig
+from transformers import AutoModelForCausalLM, AutoConfig, AutoTokenizer
+
 from accelerate import init_empty_weights
 from accelerate.hooks import remove_hook_from_module
 from accelerate.utils import find_tied_parameters, named_module_tensors, set_module_tensor_to_device, send_to_device
@@ -21,136 +24,56 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 # logger.setLevel(logging.INFO)
 
-def get_device(cur_percent, percents, choices):
-    # choose a device (gpu / cpu / disk) for a weight tensor by its percent of size
-    percents = np.cumsum(percents)
-    assert np.abs(percents[-1] - 1.0) < 1e-5, f'{percents}'
 
-    for i in range(len(percents)):
-        if cur_percent < percents[i]:
-            return choices[i]
-    return choices[-1]
+class MetaModel:
+    """
+    functions:
+        1) download model weights
+        2) analyze model structure
+            a) layer calling order
+            b) weight device map (by FlexGen policy)
+            c) tied parameters
+        3) weights offloading
+            a) load layer weights
+            b) offload layer weights
 
-
-def get_layer_module_dict(model: Module, prefix: str='') -> dict:
-    # return a dict of {layer_name : layer_module ('meta')} 
-    # of emb / norm layers & transformer layers
-    res = {}
-    for name, module in model.named_children():
-        # leaf nodes: emb / norm layers
-        if len(list(module.named_children())) == 0:
-            res[prefix+name] = module
-        # ModuleList: transformer  
-        elif isinstance(module, ModuleList):
-            for block_name, block_module in module.named_children():
-                res[prefix+name+'.'+block_name] = block_module
-        else:
-            res.update(get_layer_module_dict(module, prefix+name+'.'))
-    return res
-
-
-class ModelPolicyLoader:
+    args:
+        checkpoint: 
+            1) download *.bin weights from Hugging Face.
+            2) get empty model (on meta device) by AutoConfig.from_pretrained(checkpoint)
+        policy:
+            FlexGen policy: gpu_batch_size, num_gpu_batches, percents, etc.
+        offload_dir:
+            weights save dir 
+    """
     def __init__(self, 
         checkpoint: str, 
         policy: Policy, 
         offload_dir: str = 'weights_offload_dir'
     ):
+        # download weights
         self.checkpoint = checkpoint
         self.policy = policy 
         self.offload_dir = offload_dir 
         self.offload_folder = os.path.join(offload_dir, checkpoint.replace('/', '.'))
+        self.download()
         logger.info(f'weights offload folder: {self.offload_folder}')
 
+        # analyze model structure
+        with open(os.path.join(self.offload_folder, 'index.json'), 'r') as f:
+            self.index = json.load(f) # {name: {dtype, shape}}
+        self.dat_files = [f for f in os.listdir(self.offload_folder) if f.endswith('.dat')]
         self.model = self.get_empty_model()
-
-    def get_empty_model(self):
-        config = AutoConfig.from_pretrained(self.checkpoint)
-        with init_empty_weights():
-            model = AutoModelForCausalLM.from_config(config)
-        model.tie_weights()
-        model.eval()
-        remove_hook_from_module(model, recurse=True)
-        return model 
-    
-    def get_policy_weight_map(self):
         self.tied_params = find_tied_parameters(self.model)
-        self.layers_dict = get_layer_module_dict(self.model)
-        self.layer_names = list(self.layers_dict.keys())
+        logger.info(f'tied_params: {self.tied_params}')
 
-        # dict of device assignment for each tensor in the model
-        weight_assign_dict = {}
-        devices = ['cuda', 'cpu', 'disk']
-        percents_target = np.array([
-            self.policy.weights_gpu_percent, 
-            self.policy.weights_cpu_percent, 
-            self.policy.weights_disk_percent
-        ])
+        self.layers_dict = self.get_layer_module_dict(self.model) 
+        self.num_layers = len(self.layers_dict.keys())
+        self.device_map = self.get_policy_weight_map()
 
-        # model size (parameters + buffers), here we do not repeatly sum the tied paramters 
-        size_total = sum(np.prod(tensor.shape) for _, tensor in named_module_tensors(self.model, include_buffers=False, recurse=True))
-        size_done, size_todo = 0, size_total
-        percents_done, percents_todo = 0 * percents_target, percents_target  
-
-        for layer_name, layer_module in self.layers_dict.items():
-            # current layer
-            tensor_sizes = [np.prod(tensor.shape) for _, tensor in named_module_tensors(layer_module, include_buffers=False, recurse=True)]
-            tensor_sizes_cumsum = np.cumsum(tensor_sizes)
-
-            device_allo_size_dict = {device: 0 for device in devices} # to balance the percents
-            for i, (tensor_name, tensor) in enumerate(named_module_tensors(layer_module, include_buffers=False, recurse=True)):
-                abs_tensor_name = layer_name + '.' + tensor_name
-
-                def find_processed_tied(abs_tensor_name, weight_assign_dict):
-                    # find the processed parameter (in weight_assign_dict) of the tied parameters.
-                    for tp in self.tied_params:
-                        if abs_tensor_name in tp:
-                            for p in tp:
-                                if p in weight_assign_dict:
-                                    return p, tuple(tp)
-                    return None
-                
-                processed_tied = find_processed_tied(abs_tensor_name, weight_assign_dict) 
-                if processed_tied: # this tensor is tied and processed.
-                    p, tp = processed_tied
-                    weight_assign_dict[abs_tensor_name] = {
-                        # 'shape':  tensor.shape,
-                        'assigned_device': weight_assign_dict[p]['assigned_device'],
-                        'tied': tp
-                    }
-                else:
-                    mid_percent = (tensor_sizes_cumsum[i] - tensor_sizes[i] / 2) / tensor_sizes_cumsum[-1] # tensor mid size percent 
-                    device = get_device(mid_percent, percents_todo, devices)
-                    weight_assign_dict[abs_tensor_name] = {
-                        'shape':  tensor.shape,
-                        'assigned_device': device
-                    }
-                    
-                    device_allo_size_dict[device] += tensor_sizes[i]
-
-            # update percents_todo
-            size_layer = sum(device_allo_size_dict.values())
-            if size_layer > 0:
-                device_allo_percents = np.array([device_allo_size_dict[device] * 1. for device in devices]) / size_layer
-                percents_done = (percents_done * size_done + device_allo_percents * size_layer) / (size_done + size_layer)      
-            size_done += size_layer
-            size_todo -= size_layer
-            if size_todo > 0:
-                percents_todo = (size_total * percents_target - size_done * percents_done) / size_todo 
-            
-            logger.debug(f'{layer_name}, {percents_done}, size_todo: {size_todo}')
-        
-        self.weight_assign_dict = weight_assign_dict
-        self.device_map = {k:v['assigned_device'] for k, v in weight_assign_dict.items()}
-        logger.info('device_map is prepared!')
-
-        mem_g = sum([np.prod(v['shape']) for _, v in weight_assign_dict.items() if 'cuda' in v['assigned_device'] and 'shape' in v]) * 2 / (2 ** 30)
-        mem_c = sum([np.prod(v['shape']) for _, v in weight_assign_dict.items() if v['assigned_device'] == 'cpu' and 'shape' in v]) * 2 / (2 ** 30)
-        mem_d = sum([np.prod(v['shape']) for _, v in weight_assign_dict.items() if v['assigned_device'] == 'disk' and 'shape' in v]) * 2 / (2 ** 30)
-        mem = mem_d + mem_c + mem_g
-        logger.info(f'CausalLM {self.checkpoint} is to be loaded on: ' 
-                    f'\nGPU Mem {mem_g:.2f} GiB ({mem_g / mem:.2%}), ' 
-                    f'CPU Mem {mem_c:.2f} GiB ({mem_c / mem:.2%}), '
-                    f'Disk Mem {mem_d:.2f} Gib ({mem_d / mem:.2%})')
+        # test run to get layer names by calling order
+        self.layer_names = self.test_run() 
+        assert len(self.layer_names) == self.num_layers
 
     def is_on_disk(self):
         # check if the model has a complete copy on disk.
@@ -187,14 +110,229 @@ class ModelPolicyLoader:
         
         logger.info(f'The whole model has been downloaded an processed to offload_folder: \'{self.offload_folder}\'')
 
+    def get_empty_model(self):
+        config = AutoConfig.from_pretrained(self.checkpoint)
+        with init_empty_weights():
+            model = AutoModelForCausalLM.from_config(config)
+        model.tie_weights()
+        model.eval()
+        remove_hook_from_module(model, recurse=True)
+        return model 
+    
+    @staticmethod
+    def get_device(cur_percent, percents, choices):
+        # choose a device (gpu / cpu / disk) for a weight tensor by its percent of size
+        percents = np.cumsum(percents)
+        assert np.abs(percents[-1] - 1.0) < 1e-5, f'{percents}'
+
+        for i in range(len(percents)):
+            if cur_percent < percents[i]:
+                return choices[i]
+        return choices[-1]
+
+    @staticmethod
+    def get_layer_module_dict(model: Module, prefix: str='') -> dict:
+        # return a dict of {layer_name : layer_module ('meta')} 
+        # of emb / norm layers & transformer layers
+        res = {}
+        for name, module in model.named_children():
+            # leaf nodes: emb / norm layers
+            if len(list(module.named_children())) == 0:
+                res[prefix+name] = module
+            # ModuleList: transformer  
+            elif isinstance(module, ModuleList):
+                for block_name, block_module in module.named_children():
+                    res[prefix+name+'.'+block_name] = block_module
+            else:
+                res.update(MetaModel.get_layer_module_dict(module, prefix+name+'.'))
+        return res
+
+    def get_policy_weight_map(self):
+        # dict of device assignment for each tensor in the model
+        weight_assign_dict = {}
+        devices = ['cuda', 'cpu', 'disk']
+        percents_target = np.array([
+            self.policy.weights_gpu_percent, 
+            self.policy.weights_cpu_percent, 
+            self.policy.weights_disk_percent
+        ])
+
+        # model size (just parameters, no buffers), here we do not repeatly sum the tied paramters 
+        size_total = sum(np.prod(tensor.shape) for _, tensor in named_module_tensors(self.model, include_buffers=False, recurse=True))
+        size_done, size_todo = 0, size_total
+        percents_done, percents_todo = 0 * percents_target, percents_target  
+
+        for layer_name, layer_module in self.layers_dict.items():
+            # current layer
+            tensor_sizes = [np.prod(tensor.shape) for _, tensor in named_module_tensors(layer_module, include_buffers=False, recurse=True)]
+            tensor_sizes_cumsum = np.cumsum(tensor_sizes)
+
+            device_allo_size_dict = {device: 0 for device in devices} # to balance the percents
+            for i, (tensor_name, tensor) in enumerate(named_module_tensors(layer_module, include_buffers=False, recurse=True)):
+                abs_tensor_name = layer_name + '.' + tensor_name
+
+                def find_processed_tied(abs_tensor_name, weight_assign_dict):
+                    # find the processed parameter (in weight_assign_dict) of the tied parameters.
+                    for tp in self.tied_params:
+                        if abs_tensor_name in tp:
+                            for p in tp:
+                                if p in weight_assign_dict:
+                                    return p, tuple(tp)
+                    return None
+                
+                processed_tied = find_processed_tied(abs_tensor_name, weight_assign_dict) 
+                if processed_tied: # this tensor is tied and processed.
+                    p, tp = processed_tied
+                    weight_assign_dict[abs_tensor_name] = {
+                        # 'shape':  tensor.shape,
+                        'assigned_device': weight_assign_dict[p]['assigned_device'],
+                        'tied': tp
+                    }
+                else:
+                    mid_percent = (tensor_sizes_cumsum[i] - tensor_sizes[i] / 2) / tensor_sizes_cumsum[-1] # tensor mid size percent 
+                    device = self.get_device(mid_percent, percents_todo, devices)
+                    weight_assign_dict[abs_tensor_name] = {
+                        'shape':  tensor.shape,
+                        'assigned_device': device
+                    }
+                    
+                    device_allo_size_dict[device] += tensor_sizes[i]
+
+            # update percents_todo
+            size_layer = sum(device_allo_size_dict.values())
+            if size_layer > 0:
+                device_allo_percents = np.array([device_allo_size_dict[device] * 1. for device in devices]) / size_layer
+                percents_done = (percents_done * size_done + device_allo_percents * size_layer) / (size_done + size_layer)      
+            size_done += size_layer
+            size_todo -= size_layer
+            if size_todo > 0:
+                percents_todo = (size_total * percents_target - size_done * percents_done) / size_todo 
+            
+            logger.debug(f'{layer_name}, {percents_done}, size_todo: {size_todo}')
+        
+        self.weight_assign_dict = weight_assign_dict
+        self.device_map = {k:v['assigned_device'] for k, v in weight_assign_dict.items()}
+        logger.info('device_map is prepared!')
+
+        mem_g = sum([np.prod(v['shape']) for _, v in weight_assign_dict.items() if 'cuda' in v['assigned_device'] and 'shape' in v]) * 2 / (2 ** 30)
+        mem_c = sum([np.prod(v['shape']) for _, v in weight_assign_dict.items() if v['assigned_device'] == 'cpu' and 'shape' in v]) * 2 / (2 ** 30)
+        mem_d = sum([np.prod(v['shape']) for _, v in weight_assign_dict.items() if v['assigned_device'] == 'disk' and 'shape' in v]) * 2 / (2 ** 30)
+        mem = mem_d + mem_c + mem_g
+        logger.info(f'CausalLM {self.checkpoint} is to be loaded on: ' 
+                    f'\nGPU Mem {mem_g:.2f} GiB ({mem_g / mem:.2%}), ' 
+                    f'CPU Mem {mem_c:.2f} GiB ({mem_c / mem:.2%}), '
+                    f'Disk Mem {mem_d:.2f} Gib ({mem_d / mem:.2%})')
+
+        return self.device_map 
+    
     def get_tied_target(self, tensor_name):
-        # if tensor_name is tied and without a .dat file, if it is not tied, return itself
+        if tensor_name + '.dat' in self.dat_files:
+            return tensor_name 
+        
         for group in self.tied_params:
             if tensor_name in group:
                 for name in group:
                     if name + '.dat' in self.dat_files:
                         return name 
-        return tensor_name
+
+    def tensor_cpu_load(self, tensor_name):
+        actual_tensor_name = self.get_tied_target(tensor_name) 
+
+        metadata = self.index[actual_tensor_name]
+
+        # copied from accelerate.utils.offload
+        shape = tuple(metadata["shape"])
+        if shape == ():
+            # NumPy memory-mapped arrays can't have 0 dims so it was saved as 1d tensor
+            shape = (1,)
+
+        dtype = metadata["dtype"]
+        if dtype == "bfloat16":
+            # NumPy does not support bfloat16 so this was saved as a int16
+            dtype = "int16"
+        
+        # load .dat file to device 
+        load_path = os.path.join(self.offload_folder, actual_tensor_name + '.dat')
+        np_memmap = np.memmap(load_path, dtype=dtype, shape=shape, mode='r') 
+        value = torch.from_numpy(np.array(np_memmap))
+        set_module_tensor_to_device(self.model, tensor_name, 'cpu', value)
+
+    def tensor_cpu_offload(self, tensor_name):
+        set_module_tensor_to_device(self.model, tensor_name, 'meta') 
+    
+    def layer_cpu_load(self, layer_name):
+        logger.debug(f'load_layer_weights: {layer_name} to cpu')
+        layer_module = get_module_from_name(self.model, layer_name)
+        weight_names = [layer_name + '.' + name for name, _ in named_module_tensors(layer_module, False, True)]
+        layer_dat_files = [os.path.join(self.offload_folder, self.get_tied_target(w) + '.dat') for w in weight_names]
+        assert all([os.path.isfile(f) for f in layer_dat_files]), f'dat file error, {self.dat_files}'
+        
+        for w in weight_names:
+            self.tensor_cpu_load(w)
+
+    def layer_cpu_offload(self, layer_name):
+        logger.debug(f'offload_layer_weights: {layer_name} to meta\n\n')
+        layer_module = get_module_from_name(self.model, layer_name)
+        weight_names = [layer_name + '.' + name for name, _ in named_module_tensors(layer_module, False, True)]
+        for w in weight_names:
+            self.tensor_cpu_offload(w) 
+
+    def to_test_forward(self, layer_name, layer_calling_log):
+        layer = get_module_from_name(self.model, layer_name) 
+        layer._test_old_forward = old_forward = layer.forward 
+
+        @functools.wraps(old_forward)
+        def new_forward(*args, **kwargs):
+            self.layer_cpu_load(layer_name) 
+
+            # record layer calling order
+            layer_calling_log.append(layer_name)  
+
+            with torch.no_grad():
+                output = old_forward(*args, **kwargs)
+
+            self.layer_cpu_offload(layer_name)
+            return output
+
+        layer.forward = new_forward
+        logger.debug(f'{layer_name} to test forward') 
+
+    @contextlib.contextmanager
+    def recording(self, layer_calling_log):
+        """recording layer calling order by cpu offloading execution"""
+
+        # unordered layer names 
+        layer_names = list(self.layers_dict.keys()) 
+
+        # every layer to test forward
+        for layer_name in layer_names:
+            self.to_test_forward(layer_name, layer_calling_log)
+            
+        yield 
+
+        # every layer to old forward
+        from forward import reset_forward
+        for layer_name in layer_names:
+            reset_forward(self.model, layer_name)
+
+    def test_run(self):
+        tokenizer = AutoTokenizer.from_pretrained(self.checkpoint)
+        if tokenizer.pad_token is None:
+            tokenizer.pad_token = tokenizer.eos_token  # eos padding 
+
+        prompts = ['a']
+        inputs = tokenizer(prompts, return_tensors="pt", padding=True)
+        
+        layer_calling_log = []
+        with self.recording(layer_calling_log):
+            self.model.generate(inputs.input_ids, max_new_tokens=1)
+        return layer_calling_log
+    
+
+
+class ModelPolicyLoader(MetaModel):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
     def load_module_tensor(self, tensor_name, device):
         tensor = get_module_from_name(self.model, tensor_name)
@@ -215,13 +353,10 @@ class ModelPolicyLoader:
             # NumPy does not support bfloat16 so this was saved as a int16
             dtype = "int16"
         
-        # load .dat file
+        # load .dat file to device 
         load_path = os.path.join(self.offload_folder, actual_tensor_name + '.dat')
-
-        # to device 
         np_memmap = np.memmap(load_path, dtype=dtype, shape=shape, mode='r') 
-        value = torch.from_numpy(np_memmap) #.to(device) 
-
+        value = torch.from_numpy(np.array(np_memmap)) 
         set_module_tensor_to_device(self.model, tensor_name, device, value)
 
     def offload_module_tensor(self, tensor_name):
@@ -234,26 +369,6 @@ class ModelPolicyLoader:
         if tensor.device != device:
             set_module_tensor_to_device(self.model, tensor_name, device, tensor) 
     
-    def init_all_weights(self):
-        self.download()
-        self.get_policy_weight_map()
-
-        # files
-        self.dat_files = [f for f in os.listdir(self.offload_folder) if f.endswith('.dat')]
-        with open(os.path.join(self.offload_folder, 'index.json'), 'r') as f:
-            self.index = json.load(f) # {name: {dtype, shape}}
-
-        # load weights
-        logger.debug('init all weights...')
-        for tensor_name, device in tqdm(self.device_map.items(), desc='model init: loading by policy...'):
-            if device != 'disk':
-                self.load_module_tensor(tensor_name, device) 
-
-    def __del__(self):
-        if hasattr(self, 'device_map'):
-            for tensor_name, _ in tqdm(self.device_map.items()):
-                self.load_module_tensor(tensor_name, 'meta') 
-
     def load_layer_weights(self, layer_name, compute_device):
         logger.debug(f'load_layer_weights: {layer_name} to {compute_device}')
         layer_module = get_module_from_name(self.model, layer_name)
@@ -271,15 +386,26 @@ class ModelPolicyLoader:
         for w in weight_names:
             self.offload_module_tensor(w) 
 
+    def init_all_weights(self):
+        # load weights
+        logger.debug('init all weights...')
+        for tensor_name, device in tqdm(self.device_map.items(), desc='model init: loading by policy...'):
+            if device != 'disk':
+                self.load_module_tensor(tensor_name, device) 
+
+    def __del__(self):
+        if hasattr(self, 'device_map'):
+            for tensor_name, _ in tqdm(self.device_map.items()):
+                self.load_module_tensor(tensor_name, 'meta') 
+
 
 if __name__ == '__main__':
-    
     checkpoint = "facebook/opt-125m" # 125m 6.7b 13b 30b
     # checkpoint = "Salesforce/codegen-350M-mono"
-    # checkpoint = 'bigscience/bloom-560m'
+    # checkpoint = 'bigscience/bloom-560m' #
 
     policy = Policy(
-        gpu_batch_size=2, 
+        gpu_batch_size=1, 
         num_gpu_batches=4, 
         weights_gpu_percent=0.0, 
         weights_cpu_percent=0.3, 
@@ -291,6 +417,11 @@ if __name__ == '__main__':
         pin_weight=True,
     )
 
+    m = MetaModel(checkpoint, policy)
+    print(m.layer_names)
+
+    ###############
+
     mpl = ModelPolicyLoader(checkpoint, policy)
     mpl.init_all_weights()
-
+    print(mpl.layer_names)
