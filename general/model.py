@@ -254,7 +254,7 @@ class MetaModel:
         # load .dat file to device 
         load_path = os.path.join(self.offload_folder, actual_tensor_name + '.dat')
         np_memmap = np.memmap(load_path, dtype=dtype, shape=shape, mode='r') 
-        value = torch.from_numpy(np.array(np_memmap))
+        value = torch.from_numpy(np_memmap)
         set_module_tensor_to_device(self.model, tensor_name, 'cpu', value)
 
     def tensor_cpu_offload(self, tensor_name):
@@ -356,7 +356,7 @@ class ModelPolicyLoader(MetaModel):
         # load .dat file to device 
         load_path = os.path.join(self.offload_folder, actual_tensor_name + '.dat')
         np_memmap = np.memmap(load_path, dtype=dtype, shape=shape, mode='r') 
-        value = torch.from_numpy(np.array(np_memmap)) 
+        value = torch.from_numpy(np_memmap)
         set_module_tensor_to_device(self.model, tensor_name, device, value)
 
     def offload_module_tensor(self, tensor_name):
