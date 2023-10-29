@@ -297,23 +297,31 @@ class MetaModel:
         layer.forward = new_forward
         logger.debug(f'{layer_name} to test forward') 
 
+    def reset_forward(self, layer_name):
+        layer = get_module_from_name(self.model, layer_name) 
+
+        if hasattr(layer, "_test_old_forward"):
+            layer.forward = layer._test_old_forward
+            delattr(layer, "_test_old_forward")
+            logger.debug(f'{layer_name} from test to old.')
+
     @contextlib.contextmanager
     def recording(self, layer_calling_log):
         """recording layer calling order by cpu offloading execution"""
+        try:
+            # unordered layer names 
+            layer_names = list(self.layers_dict.keys()) 
 
-        # unordered layer names 
-        layer_names = list(self.layers_dict.keys()) 
-
-        # every layer to test forward
-        for layer_name in layer_names:
-            self.to_test_forward(layer_name, layer_calling_log)
+            # every layer to test forward
+            for layer_name in layer_names:
+                self.to_test_forward(layer_name, layer_calling_log)
+                
+            yield 
             
-        yield 
-
-        # every layer to old forward
-        from forward import reset_forward
-        for layer_name in layer_names:
-            reset_forward(self.model, layer_name)
+        finally:
+            # every layer to old forward
+            for layer_name in layer_names:
+                self.reset_forward(layer_name)
 
     def test_run(self):
         tokenizer = AutoTokenizer.from_pretrained(self.checkpoint)

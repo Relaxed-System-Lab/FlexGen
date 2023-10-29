@@ -1,5 +1,5 @@
 from utils import Policy, logging
-from forward import flexgen
+from flexgen import FlexGen
 from utils.test import test_hf_gen
 
 logger = logging.getLogger(__name__)
@@ -22,6 +22,6 @@ policy = Policy(
     pin_weight=True,
 )
 
-with flexgen(checkpoint, policy) as model:
+with FlexGen(checkpoint, policy, compute_device='cpu') as model:
     num_prompts = policy.gpu_batch_size * policy.num_gpu_batches
     test_hf_gen(checkpoint, model, num_prompts)
