@@ -39,7 +39,14 @@ class FlexGen:
         self.layer_names = self.mpl.layer_names # ordered
         self.num_layers = self.mpl.num_layers
 
-        
+    def __enter__(self): 
+        self.model_to_flexgen()
+        return self.model 
+            
+    def __exit__(self, *exception_infos):
+        self.model_reset()
+        shutil.rmtree(self.args_offload_dir) 
+
     def layer_reset(self, j):
         """
         reset a layer's forward method to its original version.
@@ -55,14 +62,6 @@ class FlexGen:
     def model_reset(self):
         for j, _ in enumerate(self.layer_names):
             self.layer_reset(j) 
-    
-    def __enter__(self): 
-        self.model_to_flexgen()
-        return self.model 
-            
-    def __exit__(self, *args, **kwargs):
-        self.model_reset()
-        shutil.rmtree(self.args_offload_dir) 
 
     def layer_to_flexgen(self, j):
         """
