@@ -17,8 +17,9 @@ logger.setLevel(logging.DEBUG)
 class FlexGen:
     """
     override the forward method for each layer (e.g. embedding layers, transformer blocks, etc.) in a CausalLM.
-    functions:
-        1) 
+    example:
+        >>> with FlexGen(...) as model:
+        >>>     model.generate(...)
     args:
         model: 
             the model object to be override.

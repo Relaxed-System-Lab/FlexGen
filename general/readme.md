@@ -3,11 +3,7 @@
 
 TODO:
 - policy solver
-- cuda streams
-- profiler
-- safetensors
-- mixed device layer io
-- shared / tied weights
+- profiler: cuda.event()
 - multiple GPU / tensor parallelism
 - various inference algorithms (including: ?)
 
