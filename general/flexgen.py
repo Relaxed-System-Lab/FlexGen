@@ -69,6 +69,8 @@ class FlexGen(ModelPolicyLoader):
         for j, _ in enumerate(self.layer_names):
             self.layer_reset(j) 
 
+
+
     def layer_to_flexgen(self, j):
         """
         override the j-th layer's forward function to FlexGen version.
@@ -91,28 +93,28 @@ class FlexGen(ModelPolicyLoader):
         post forward:
             1) offload current layer's weights to mixed devices (by policy)
         """
+        # get current and next layers' names
         layer_name = self.layer_names[j]
         next_layer_name = self.layer_names[(j + 1) % self.num_layers]
 
+        # get current layer module, and access to its forward method
         layer = get_module_from_name(self.model, layer_name)  
         if hasattr(layer, "_flexgen_old_forward"): return  
         layer._flexgen_old_forward = old_forward = layer.forward 
         
+        # override layer forward method 
         @torch.no_grad()
         @functools.wraps(old_forward)
         def new_forward(*args, **kwargs):
-            self.load_layer_weights(layer_name, self.compute_device) 
-            self.load_layer_weights(next_layer_name, self.compute_device) 
-            
             logger.debug(f'args: {get_type_size_info(args)}')
             logger.debug(f'kwargs: {get_type_size_info(kwargs)}')
 
-            # args = to_compute_device(args)
-            # kwargs = to_compute_device(kwargs)
+            # load current and next layers' weights
+            self.load_layer_weights(layer_name, self.compute_device) 
+            self.load_layer_weights(next_layer_name, self.compute_device) 
             
             outputs = []
             for k in range(self.K):
-
                 # 'pre' fwd: load curr & next inputs (activations, KV cache) to compute device
                 args_k = load_kth_batch_inputs(args, k, self.K) # TODO: CUDA stream
                 kwargs_k = load_kth_batch_inputs(kwargs, k, self.K) # TODO: CUDA stream 
@@ -121,27 +123,25 @@ class FlexGen(ModelPolicyLoader):
                 output = old_forward(*args_k, **kwargs_k)
 
                 # post fwd: 1) output: to mix, 2) args_k, kwargs_k: free (TODO?)
-                # if not the last layer, send to mixed device
-                if layer_name != self.layer_names[-1]: 
-                    output = to_mixed_device(output, self.policy, prefix=f'{self.args_offload_dir}/{layer_name}.batch.{k}.output')
-                # output = to_compute_device(output)
-
-                logger.debug(f'layer: {layer_name}, '
-                            f'batch: {k}, '
-                            f'args: {get_type_size_info(args_k)}, '
-                            f'kwargs: {get_type_size_info(kwargs_k)}, '
-                            f'output: {get_type_size_info(output)}')
+                output = to_mixed_device(output, self.policy, prefix=f'{self.args_offload_dir}/{layer_name}.batch.{k}.output')
+                logger.debug(
+                    f'layer: {layer_name}, '
+                    f'batch: {k}, '
+                    f'args: {get_type_size_info(args_k)}, '
+                    f'kwargs: {get_type_size_info(kwargs_k)}, '
+                    f'output: {get_type_size_info(output)}'
+                )
                 outputs.append(output) 
-                # output: (act: mixtensor, (k: mixtensor, v: mixtensor))
-                # outputs: K * (0, (1, 2))
-
-            output = concat_outputs(outputs) 
-            # output = to_compute_device(output)
                 
+            output = concat_outputs(outputs) 
+            # for the last layer (e.g. lm_head in OPT), send its output (e.g. a token's logits) to compute device to get the generated id
+            if layer_name == self.layer_names[-1]: 
+                output = to_compute_device(output)
             logger.debug(f'outputs after concat: {get_type_size_info(output)}')  
 
             # post fwd: free curr weights
             self.offload_layer_weights(layer_name)
+
             return output
 
         layer.forward = new_forward
