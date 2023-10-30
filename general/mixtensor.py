@@ -16,7 +16,7 @@ class MixTensor:
         file_path: str,
         dtype
     ):
-        self.mix_data = mix_data
+        self.mix_data = mix_data # (gpu_data, cpu_data, disk_data)
         self.split_dim = split_dim 
         self.device = device 
         self.shape = shape 
@@ -65,7 +65,7 @@ class MixTensor:
         file_path: str 
     ):
         split_dim = cls.get_split_dim(tensor) 
-        device = tensor.device 
+        device = tensor.device # compute device 
         shape = tensor.shape
         dtype = tensor.dtype
         
@@ -101,12 +101,10 @@ class MixTensor:
 
         tensor = []
         if g_data is not None:
-            if g_data.device != torch.device(compute_device):
-                g_data = g_data.to(compute_device) 
+            g_data = g_data.to(compute_device) 
             tensor.append(g_data)
         if c_data is not None:
-            if c_data.device != torch.device(compute_device):
-                c_data = c_data.to(compute_device) 
+            c_data = c_data.to(compute_device)  
             tensor.append(c_data)
         if d_data is not None:
             (shape, np_dtype) = d_data 
@@ -131,15 +129,6 @@ class BatchMixTensor:
         self.shape = self.size()
         self.dtype = batches[0].dtype
         self.device = batches[0].device
-
-    # def __getitem__(self, i):
-    #     return self.batches[i]
-    
-    # def __setitem__(self, i, mt: MixTensor):
-    #     self.batches[i] = mt
-
-    # def __len__(self):
-    #     return len(self.batches)
     
     def size(self, dim=None):
         shape = list(self.batches[0].size()) 
