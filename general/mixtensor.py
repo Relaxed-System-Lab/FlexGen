@@ -1,10 +1,8 @@
 from typing import Mapping, Tuple, Iterable
 import numpy as np 
-import os 
-import shutil 
-import torch
 from math import floor
-
+import gc 
+import torch
 class MixTensor:
     def __init__(
         self, 
@@ -84,7 +82,8 @@ class MixTensor:
         else:
             d_data = None 
         mix_data = (g_data, c_data, d_data)
-
+        del tensor # TODO
+        
         return cls(
             mix_data=mix_data,
             split_dim=split_dim,
