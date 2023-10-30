@@ -82,7 +82,6 @@ class MixTensor:
         else:
             d_data = None 
         mix_data = (g_data, c_data, d_data)
-        del tensor # TODO
         
         return cls(
             mix_data=mix_data,
