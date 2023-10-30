@@ -128,11 +128,11 @@ class MixTensor:
 
 class BatchMixTensor:
     def __init__(self, batches: Iterable[MixTensor]):
-        self.batches = batches # [k]
+        self.batches = batches # list of K batches with the same shape
 
         self.shape = self.size()
         self.dtype = batches[0].dtype
-        self.device = batches[0].device
+        self.device = batches[0].device # compute device
     
     def size(self, dim=None):
         shape = list(self.batches[0].size()) 
@@ -162,8 +162,7 @@ class BatchMixTensor:
         return torch.cat(tensor, dim=0)
 
     def view(self, shape): 
-        # for codegen tfm fwd
-        # TODO: batchmixtensor version
+        # for .view in codegen tfm fwd
         return self.to_tensor().view(shape)
 
 if __name__ == '__main__':
