@@ -93,48 +93,48 @@ class FlexGen:
 
         if hasattr(layer, "_flexgen_old_forward"): return  
         layer._flexgen_old_forward = old_forward = layer.forward 
-
+        
+        @torch.no_grad()
         @functools.wraps(old_forward)
         def new_forward(*args, **kwargs):
             self.mpl.load_layer_weights(layer_name, self.compute_device) 
             self.mpl.load_layer_weights(next_layer_name, self.compute_device) 
             
-            with torch.no_grad():
-                logger.debug(f'args: {get_type_size_info(args)}')
-                logger.debug(f'kwargs: {get_type_size_info(kwargs)}')
+            logger.debug(f'args: {get_type_size_info(args)}')
+            logger.debug(f'kwargs: {get_type_size_info(kwargs)}')
 
-                # args = to_compute_device(args)
-                # kwargs = to_compute_device(kwargs)
-                
-                outputs = []
-                for k in range(self.K):
+            # args = to_compute_device(args)
+            # kwargs = to_compute_device(kwargs)
+            
+            outputs = []
+            for k in range(self.K):
 
-                    # 'pre' fwd: load curr & next inputs (activations, KV cache) to compute device
-                    args_k = load_kth_batch_inputs(args, k, self.K) # TODO: CUDA stream
-                    kwargs_k = load_kth_batch_inputs(kwargs, k, self.K) # TODO: CUDA stream 
+                # 'pre' fwd: load curr & next inputs (activations, KV cache) to compute device
+                args_k = load_kth_batch_inputs(args, k, self.K) # TODO: CUDA stream
+                kwargs_k = load_kth_batch_inputs(kwargs, k, self.K) # TODO: CUDA stream 
 
-                    # the k-th fwd pass
-                    output = old_forward(*args_k, **kwargs_k)
+                # the k-th fwd pass
+                output = old_forward(*args_k, **kwargs_k)
 
-                    # post fwd: 1) output: to mix, 2) args_k, kwargs_k: free (TODO?)
-                    # if not the last layer, send to mixed device
-                    if layer_name != self.layer_names[-1]: 
-                        output = to_mixed_device(output, self.policy, prefix=f'{self.args_offload_dir}/{layer_name}.batch.{k}.output')
-                    # output = to_compute_device(output)
-
-                    logger.debug(f'layer: {layer_name}, '
-                                f'batch: {k}, '
-                                f'args: {get_type_size_info(args_k)}, '
-                                f'kwargs: {get_type_size_info(kwargs_k)}, '
-                                f'output: {get_type_size_info(output)}')
-                    outputs.append(output) 
-                    # output: (act: mixtensor, (k: mixtensor, v: mixtensor))
-                    # outputs: K * (0, (1, 2))
-
-                output = concat_outputs(outputs) 
+                # post fwd: 1) output: to mix, 2) args_k, kwargs_k: free (TODO?)
+                # if not the last layer, send to mixed device
+                if layer_name != self.layer_names[-1]: 
+                    output = to_mixed_device(output, self.policy, prefix=f'{self.args_offload_dir}/{layer_name}.batch.{k}.output')
                 # output = to_compute_device(output)
-                    
-                logger.debug(f'outputs after concat: {get_type_size_info(output)}')  
+
+                logger.debug(f'layer: {layer_name}, '
+                            f'batch: {k}, '
+                            f'args: {get_type_size_info(args_k)}, '
+                            f'kwargs: {get_type_size_info(kwargs_k)}, '
+                            f'output: {get_type_size_info(output)}')
+                outputs.append(output) 
+                # output: (act: mixtensor, (k: mixtensor, v: mixtensor))
+                # outputs: K * (0, (1, 2))
+
+            output = concat_outputs(outputs) 
+            # output = to_compute_device(output)
+                
+            logger.debug(f'outputs after concat: {get_type_size_info(output)}')  
 
             # post fwd: free curr weights
             self.mpl.offload_layer_weights(layer_name)
