@@ -143,6 +143,12 @@ class BatchMixTensor:
         else:
             return size[dim]
 
+    def to_tensor(self):
+        tensor = []
+        for mt in self.batches:
+            tensor.append(mt.to_tensor())
+        return torch.cat(tensor, dim=0)
+
     def __add__(self, bmt):
         for k in range(len(self.batches)): 
             # TODO flexgen: parallelly load k+1
@@ -154,12 +160,6 @@ class BatchMixTensor:
 
     def contiguous(self):
         return self.to_tensor()
-
-    def to_tensor(self):
-        tensor = []
-        for mt in self.batches:
-            tensor.append(mt.to_tensor())
-        return torch.cat(tensor, dim=0)
 
     def view(self, shape): 
         # for .view in codegen tfm fwd
