@@ -40,7 +40,7 @@ class FlexGen(ModelPolicyLoader):
         )
 
         self.K = policy.num_gpu_batches # number of minibatches
-        self.compute_device = compute_device 
+        self.compute_device = compute_device if torch.cuda.is_available() else 'cpu'
         self.args_offload_dir = args_offload_dir 
         os.makedirs(args_offload_dir, exist_ok=True) 
 
@@ -69,9 +69,7 @@ class FlexGen(ModelPolicyLoader):
         for j, _ in enumerate(self.layer_names):
             self.layer_reset(j) 
 
-
-
-    def layer_to_flexgen(self, j):
+    def get_flexgen_forward(self, old_forward, layer_name, next_layer_name):
         """
         override the j-th layer's forward function to FlexGen version.
 
@@ -93,19 +91,10 @@ class FlexGen(ModelPolicyLoader):
         post forward:
             1) offload current layer's weights to mixed devices (by policy)
         """
-        # get current and next layers' names
-        layer_name = self.layer_names[j]
-        next_layer_name = self.layer_names[(j + 1) % self.num_layers]
-
-        # get current layer module, and access to its forward method
-        layer = get_module_from_name(self.model, layer_name)  
-        if hasattr(layer, "_flexgen_old_forward"): return  
-        layer._flexgen_old_forward = old_forward = layer.forward 
         
-        # override layer forward method 
         @torch.no_grad()
         @functools.wraps(old_forward)
-        def new_forward(*args, **kwargs):
+        def flexgen_forward(*args, **kwargs):
             logger.debug(f'args: {get_type_size_info(args)}')
             logger.debug(f'kwargs: {get_type_size_info(kwargs)}')
 
@@ -115,6 +104,7 @@ class FlexGen(ModelPolicyLoader):
             
             outputs = []
             for k in range(self.K):
+
                 # 'pre' fwd: load curr & next inputs (activations, KV cache) to compute device
                 args_k = load_kth_batch_inputs(args, k, self.K) # TODO: CUDA stream
                 kwargs_k = load_kth_batch_inputs(kwargs, k, self.K) # TODO: CUDA stream 
@@ -134,17 +124,38 @@ class FlexGen(ModelPolicyLoader):
                 outputs.append(output) 
                 
             output = concat_outputs(outputs) 
-            # for the last layer (e.g. lm_head in OPT), send its output (e.g. a token's logits) to compute device to get the generated id
+
+            # for the last layer (e.g. lm_head in OPT), 
+            # send its output (e.g. a token's logits) to compute device 
+            # to get the generated id (e.g. by a torch.argmax operation)
             if layer_name == self.layer_names[-1]: 
                 output = to_compute_device(output)
+
             logger.debug(f'outputs after concat: {get_type_size_info(output)}')  
 
             # post fwd: free curr weights
             self.offload_layer_weights(layer_name)
 
             return output
+        
+        return flexgen_forward
 
-        layer.forward = new_forward
+    def layer_to_flexgen(self, j):
+        # get current and next layers' names
+        layer_name = self.layer_names[j]
+        next_layer_name = self.layer_names[(j + 1) % self.num_layers]
+
+        # get current layer module, and save its old forward 
+        layer = get_module_from_name(self.model, layer_name)  
+        if hasattr(layer, "_flexgen_old_forward"): return  
+        layer._flexgen_old_forward = layer.forward 
+        
+        # override layer forward  
+        layer.forward = self.get_flexgen_forward(
+            old_forward=layer.forward, 
+            layer_name=layer_name, 
+            next_layer_name=next_layer_name
+        )
         logger.debug(f'{layer_name} to flexgen forward')
 
     def model_to_flexgen(self):
