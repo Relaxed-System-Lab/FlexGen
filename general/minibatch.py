@@ -78,7 +78,6 @@ def to_mixed_device(obj, policy, prefix):
         logger.warning(f'inputs: {obj} of type \'{type(obj)}\' is not implemented.')
         return obj
 
-
 def concat_outputs(outputs): # concatenate K outputs to one output
     assert len(outputs), 'empty outputs.'
     assert isinstance(outputs[0], (MixTensor, torch.Tensor, tuple)), f'not supported type: {type(outputs[0])}.'
