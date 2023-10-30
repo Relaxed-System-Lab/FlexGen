@@ -1,6 +1,5 @@
 from utils import Policy, logging
-# from flexgen import FlexGen
-from block import FlexGen
+from flexgen import FlexGen
 from utils.test import test_hf_gen
 
 logger = logging.getLogger(__name__)
@@ -14,11 +13,11 @@ policy = Policy(
     gpu_batch_size=1, 
     num_gpu_batches=4, 
     weights_gpu_percent=0.0, 
-    weights_cpu_percent=1,#0.3, 
+    weights_cpu_percent=0.3, 
     cache_gpu_percent=0.0, 
-    cache_cpu_percent=1,#0.2, 
+    cache_cpu_percent=0.2, 
     act_gpu_percent=0.0, 
-    act_cpu_percent=1,#0.5, 
+    act_cpu_percent=0.5, 
     overlap=True, 
     pin_weight=True,
 )

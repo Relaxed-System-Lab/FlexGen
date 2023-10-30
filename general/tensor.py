@@ -1,8 +1,8 @@
 from typing import Mapping, Tuple, Iterable
 import numpy as np 
 from math import floor
-import gc 
 import torch
+
 class MixTensor:
     def __init__(
         self, 
@@ -98,7 +98,7 @@ class MixTensor:
     def to_tensor(self):
         # move g/c/d mixed data to compute device
         g_data, c_data, d_data = self.mix_data 
-        # self.mix_data = None 
+        self.mix_data = None 
 
         compute_device = self.device 
 
@@ -126,7 +126,7 @@ class MixTensor:
         return self.from_tensor(res, self.percents, self.file_path)
 
 
-class Batches:
+class BlockTensor:
     def __init__(self, batches: Iterable[MixTensor | torch.Tensor]):
         self.batches = batches # list of K batches with the same shape
 
@@ -152,17 +152,18 @@ class Batches:
     def __add__(self, bs):
         for k in range(len(self.batches)): 
             # TODO flexgen: parallelly load k+1
-            if isinstance(self.batches[k], MixTensor):
+            if isinstance(self.batches[k], MixTensor) and isinstance(bs.batches[k], MixTensor):
                 self_k = self.batches[k].to_tensor()  
                 bs_k = bs.batches[k].to_tensor() 
                 res = self_k + bs_k 
                 self.batches[k] = MixTensor.from_tensor(res, self.batches[k].percents, self.batches[k].file_path)
-            else:
+            elif isinstance(self.batches[k], torch.Tensor) and isinstance(bs.batches[k], torch.Tensor):
                 self_k = self.batches[k]
                 bs_k = bs.batches[k]
                 res = self_k + bs_k 
                 self.batches[k] = res
-
+            else:
+                raise NotImplementedError(f'Not implemented: \'{type(self.batches[k])}\' + \'{type(bs.batches[k])}\'.')
         return self 
 
     def contiguous(self):

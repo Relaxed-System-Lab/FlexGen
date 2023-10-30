@@ -5,21 +5,13 @@ import functools
 
 import torch
 
-from minibatch import get_info, to_compute_device, to_mixed_device, get_kth_batch_inputs, concat_outputs
 from model import ModelPolicyLoader 
+from block import get_info, to_compute_device, BlockPolicyLoader
 from utils import logging, get_module_from_name, Policy
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
-class BlockPolicyLoader:
-    def __init__(self, block): 
-        self.block = block 
-
-    
-
-
-    
 
 class FlexGen:
     """
@@ -38,6 +30,7 @@ class FlexGen:
     ):
         self.checkpoint = checkpoint
         self.policy = policy
+        self.K = policy.num_gpu_batches # number of minibatches
         self.weights_offload_dir = weights_offload_dir
         self.compute_device = compute_device if torch.cuda.is_available() else 'cpu'
         self.args_offload_dir = args_offload_dir 
@@ -53,8 +46,6 @@ class FlexGen:
         self.layer_names = mpl.layer_names 
         self.num_layers = mpl.num_layers
         self.mpl = mpl
-
-        self.K = policy.num_gpu_batches # number of minibatches
 
     def __enter__(self): 
         self.model_to_flexgen()
@@ -80,7 +71,7 @@ class FlexGen:
     def model_reset(self):
         for j, _ in enumerate(self.layer_names):
             self.layer_reset(j) 
-
+    
     def get_flexgen_forward(
         self, 
         old_forward, 
@@ -114,44 +105,51 @@ class FlexGen:
         @torch.no_grad()
         @functools.wraps(old_forward)
         def flexgen_forward(*args, **kwargs):
-            # load current and next layers' weights, offload prev layer's weights (TODO: in parallel)
+            # 1. load current and next layers' weights, offload prev layer's weights (TODO: in parallel)
             self.mpl.offload_layer_weights(prev_layer_name) 
-            self.mpl.load_layer_weights(curr_layer_name, self.compute_device) 
             self.mpl.load_layer_weights(next_layer_name, self.compute_device) 
-
-            # nested tuple/list/dict/Tensor/BatchMixTensor
+            self.mpl.load_layer_weights(curr_layer_name, self.compute_device) # curr load -> curr compute
+            logger.debug(f'layer: {curr_layer_name}')
             logger.debug(f'args: {get_info(args)}')
             logger.debug(f'kwargs: {get_info(kwargs)}')
-            
-            outputs = []
+
+            bpl = BlockPolicyLoader(
+                inputs=(args, kwargs), 
+                policy=self.policy, 
+                layer_name=curr_layer_name
+            )
+            args_k, kwargs_k = bpl.get_kth_input(1)
+            logger.debug(f'args_k: {get_info(args_k)}') 
+            logger.debug(f'kwarg_k: {get_info(kwargs_k)}')
+                    
             for k in range(self.K):
-                # 'pre' fwd: load curr & next batchs' inputs (activations, KV cache) to compute device
-                #            store (offload) prev batch's outputs
-                args_k, kwargs_k = get_kth_batch_inputs((args, kwargs), k, self.K) # TODO: CUDA stream
-                logger.debug(f'layer: {curr_layer_name}, batch: {k}')
-                logger.debug(f'args_k: {get_info(args_k)}, kwargs_k: {get_info(kwargs_k)}')
-
-                args_k, kwargs_k = to_compute_device((args_k, kwargs_k))
-
-                # 'pre' fwd: load next inputs (activations, KV cache) to compute device
-                if k < self.K - 1:
-                    args_kp1, kwargs_kp1 = get_kth_batch_inputs((args, kwargs), k + 1, self.K) # TODO: CUDA stream
-                else: 
-                    pass 
-                    # outputs[0] = to_compute_device(outputs[0])
-
-                # the k-th fwd pass
-                output = old_forward(*args_k, **kwargs_k)
-
-                # 'post' fwd: 1) output: to mix, 2) args_k, kwargs_k: offload / free (TODO)
-                output = to_mixed_device(output, self.policy, prefix=f'{self.args_offload_dir}/{curr_layer_name}.batch.{k}.output')
-                logger.debug(f'output: {get_info(output)}')
-
-                outputs.append(output) 
-
-                # sync: CUDA, Disk
+                # 2. store prev batch output (act, kv)
+                if k > 0:
+                    bpl.offload_kth_output(k - 1)
+                    logger.debug(f'batch: {k - 1}, output: {get_info(bpl.get_kth_output(k - 1))}')
+                elif k == 0: # corner case
+                    bpl.offload_kth_input(-1) 
+                    logger.debug(f'last layer, batch: {self.K - 1}, as curr layer\'s input: {get_info(bpl.get_kth_input(-1))}')
                 
-            output = concat_outputs(outputs) 
+                # 3. load curr batch input (act, kv)
+                bpl.load_kth_input(k) 
+
+                # 4. load next batch input (act, kv)
+                assert self.K >= 2 
+                if k < self.K - 1:
+                    bpl.load_kth_input(k + 1) 
+                else: # corner case
+                    bpl.load_kth_output(0) 
+
+                # 5. compute the k-th forward pass
+                args_k, kwargs_k = bpl.get_kth_input(k)
+                output = old_forward(*args_k, **kwargs_k)
+                bpl.set_kth_output(k, output)
+
+                # (TODO) 6. sync: CUDA, Disk 
+
+                
+            output = bpl.concat_outputs() 
 
             # for the last layer (e.g. lm_head in OPT), 
             # send its output (e.g. a token's logits) to compute device 
@@ -159,10 +157,7 @@ class FlexGen:
             if curr_layer_name == self.layer_names[-1]: 
                 output = to_compute_device(output)
 
-            logger.debug(f'outputs after concat: {get_info(output)}')  
-
-            # post fwd: free curr weights
-            # self.mpl.offload_layer_weights(curr_layer_name)
+            logger.debug(f'outputs after concat: {get_info(output)}\n\n')  
 
             return output
         
