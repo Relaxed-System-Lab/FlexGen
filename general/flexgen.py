@@ -39,7 +39,7 @@ class FlexGen(ModelPolicyLoader):
             weights_offload_dir=weights_offload_dir
         )
 
-        self.K = policy.num_gpu_batches # K
+        self.K = policy.num_gpu_batches # number of minibatches
         self.compute_device = compute_device 
         self.args_offload_dir = args_offload_dir 
         os.makedirs(args_offload_dir, exist_ok=True) 
@@ -51,6 +51,7 @@ class FlexGen(ModelPolicyLoader):
     def __exit__(self, *exception_infos):
         self.model_reset()
         shutil.rmtree(self.args_offload_dir) 
+        os.makedirs(self.args_offload_dir, exist_ok=True) 
 
     def layer_reset(self, j):
         """
