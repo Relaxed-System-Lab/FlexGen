@@ -49,13 +49,13 @@ class MetaModel:
     def __init__(self, 
         checkpoint: str, 
         policy: Policy, 
-        offload_dir: str = 'weights_offload_dir'
+        weights_offload_dir: str = 'weights_offload_dir'
     ):
         # download weights
         self.checkpoint = checkpoint
         self.policy = policy 
-        self.offload_dir = offload_dir 
-        self.offload_folder = os.path.join(offload_dir, checkpoint.replace('/', '.'))
+        self.offload_dir = weights_offload_dir 
+        self.offload_folder = os.path.join(weights_offload_dir, checkpoint.replace('/', '.'))
         self.download()
         logger.info(f'weights offload folder: {self.offload_folder}')
 
@@ -339,8 +339,16 @@ class MetaModel:
 
 
 class ModelPolicyLoader(MetaModel):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, 
+        checkpoint: str, 
+        policy: Policy, 
+        weights_offload_dir: str = 'weights_offload_dir'
+    ):
+        super().__init__(
+            checkpoint=checkpoint, 
+            policy=policy, 
+            weights_offload_dir=weights_offload_dir
+        )
         self.init_all_weights() 
         
     def load_module_tensor(self, tensor_name, device):

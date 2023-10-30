@@ -1,11 +1,9 @@
 # rewrite layer forward function
 import os 
 import shutil
-from typing import Any
+import functools 
 
 import torch
-import functools 
-import contextlib
 
 from minibatch import get_type_size_info, to_compute_device, to_mixed_device, load_kth_batch_inputs, concat_outputs
 from model import ModelPolicyLoader 
@@ -14,7 +12,7 @@ from utils import logging, get_module_from_name, Policy
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
-class FlexGen:
+class FlexGen(ModelPolicyLoader):
     """
     override the forward method for each layer (e.g. embedding layers, transformer blocks, etc.) in a CausalLM.
     example:
@@ -27,18 +25,24 @@ class FlexGen:
             ordered layer names.
         
     """
-    def __init__(self, checkpoint: str, policy: Policy, compute_device = 'cpu', args_offload_dir = 'args_offload_dir'):
-        self.checkpoint = checkpoint
-        self.policy = policy 
+    def __init__(
+        self, 
+        checkpoint: str, 
+        policy: Policy, 
+        compute_device = 'cpu', 
+        weights_offload_dir = 'weights_offload_dir', 
+        args_offload_dir = 'args_offload_dir'
+    ):
+        super().__init__(
+            checkpoint=checkpoint, 
+            policy=policy, 
+            weights_offload_dir=weights_offload_dir
+        )
+
         self.K = policy.num_gpu_batches # K
         self.compute_device = compute_device 
         self.args_offload_dir = args_offload_dir 
         os.makedirs(args_offload_dir, exist_ok=True) 
-
-        self.mpl = ModelPolicyLoader(checkpoint, policy) 
-        self.model = self.mpl.model
-        self.layer_names = self.mpl.layer_names # ordered
-        self.num_layers = self.mpl.num_layers
 
     def __enter__(self): 
         self.model_to_flexgen()
@@ -90,15 +94,14 @@ class FlexGen:
         next_layer_name = self.layer_names[(j + 1) % self.num_layers]
 
         layer = get_module_from_name(self.model, layer_name)  
-
         if hasattr(layer, "_flexgen_old_forward"): return  
         layer._flexgen_old_forward = old_forward = layer.forward 
         
         @torch.no_grad()
         @functools.wraps(old_forward)
         def new_forward(*args, **kwargs):
-            self.mpl.load_layer_weights(layer_name, self.compute_device) 
-            self.mpl.load_layer_weights(next_layer_name, self.compute_device) 
+            self.load_layer_weights(layer_name, self.compute_device) 
+            self.load_layer_weights(next_layer_name, self.compute_device) 
             
             logger.debug(f'args: {get_type_size_info(args)}')
             logger.debug(f'kwargs: {get_type_size_info(kwargs)}')
@@ -137,7 +140,7 @@ class FlexGen:
             logger.debug(f'outputs after concat: {get_type_size_info(output)}')  
 
             # post fwd: free curr weights
-            self.mpl.offload_layer_weights(layer_name)
+            self.offload_layer_weights(layer_name)
             return output
 
         layer.forward = new_forward
