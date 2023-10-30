@@ -350,6 +350,8 @@ class ModelPolicyLoader(MetaModel):
             weights_offload_dir=weights_offload_dir
         )
         self.init_all_weights() 
+
+        # TODO: streams: prev/curr/next layers
         
     def load_module_tensor(self, tensor_name, device):
         tensor = get_module_from_name(self.model, tensor_name)
@@ -397,7 +399,7 @@ class ModelPolicyLoader(MetaModel):
             self.load_module_tensor(w, compute_device)
 
     def offload_layer_weights(self, layer_name):
-        logger.debug(f'offload_layer_weights: {layer_name}\n\n')
+        logger.debug(f'offload_layer_weights: {layer_name}')
         layer_module = get_module_from_name(self.model, layer_name)
         weight_names = [layer_name + '.' + name for name, _ in named_module_tensors(layer_module, False, True)]
         for w in weight_names:

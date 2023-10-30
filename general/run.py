@@ -1,5 +1,6 @@
 from utils import Policy, logging
-from flexgen import FlexGen
+# from flexgen import FlexGen
+from block import FlexGen
 from utils.test import test_hf_gen
 
 logger = logging.getLogger(__name__)

@@ -98,7 +98,7 @@ class MixTensor:
     def to_tensor(self):
         # move g/c/d mixed data to compute device
         g_data, c_data, d_data = self.mix_data 
-        self.mix_data = None 
+        # self.mix_data = None 
 
         compute_device = self.device 
 
@@ -126,8 +126,8 @@ class MixTensor:
         return self.from_tensor(res, self.percents, self.file_path)
 
 
-class BatchMixTensor:
-    def __init__(self, batches: Iterable[MixTensor]):
+class Batches:
+    def __init__(self, batches: Iterable[MixTensor | torch.Tensor]):
         self.batches = batches # list of K batches with the same shape
 
         self.shape = self.size()
@@ -145,17 +145,24 @@ class BatchMixTensor:
 
     def to_tensor(self):
         tensor = []
-        for mt in self.batches:
-            tensor.append(mt.to_tensor())
+        for b in self.batches:
+            tensor.append(b.to_tensor() if isinstance(b, MixTensor) else b) 
         return torch.cat(tensor, dim=0)
 
-    def __add__(self, bmt):
+    def __add__(self, bs):
         for k in range(len(self.batches)): 
             # TODO flexgen: parallelly load k+1
-            self_k = self.batches[k].to_tensor()
-            bmt_k = bmt.batches[k].to_tensor()
-            res = self_k + bmt_k 
-            self.batches[k] = MixTensor.from_tensor(res, self.batches[k].percents, self.batches[k].file_path)
+            if isinstance(self.batches[k], MixTensor):
+                self_k = self.batches[k].to_tensor()  
+                bs_k = bs.batches[k].to_tensor() 
+                res = self_k + bs_k 
+                self.batches[k] = MixTensor.from_tensor(res, self.batches[k].percents, self.batches[k].file_path)
+            else:
+                self_k = self.batches[k]
+                bs_k = bs.batches[k]
+                res = self_k + bs_k 
+                self.batches[k] = res
+
         return self 
 
     def contiguous(self):

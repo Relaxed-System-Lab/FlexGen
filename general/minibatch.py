@@ -4,37 +4,34 @@ import torch
 from accelerate.utils import honor_type
 from typing import Mapping
 from utils import logging 
-from mixtensor import MixTensor, BatchMixTensor
+from mixtensor import MixTensor, Batches
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
 
-def get_type_size_info(obj): # recursive
+def get_info(obj): 
     if isinstance(obj, (tuple, list)):
-        return honor_type(obj, (get_type_size_info(o) for o in obj))
+        return honor_type(obj, (get_info(o) for o in obj))
     elif isinstance(obj, Mapping):
-        return type(obj)({k:get_type_size_info(v) for k, v in obj.items()})
-    
-    elif isinstance(obj, (torch.Tensor, MixTensor, BatchMixTensor)):
+        return type(obj)({k:get_info(v) for k, v in obj.items()})
+    elif isinstance(obj, (torch.Tensor, MixTensor, Batches)):
         return f'{type(obj)}: {obj.size()}'
-
     elif isinstance(obj, (int, bool, type(None))): 
         return f'{type(obj)}: {obj}'
     else:
         logger.warning(f'inputs: {obj} of type \'{type(obj)}\' is not implemented.')
         return f'{type(obj)}: {obj}'
 
-def to_compute_device(obj): # recursive
+def to_compute_device(obj): 
     if isinstance(obj, (tuple, list)):
         return honor_type(obj, (to_compute_device(o) for o in obj))
     elif isinstance(obj, Mapping):
         return type(obj)({k:to_compute_device(v) for k, v in obj.items()})
     elif isinstance(obj, torch.Tensor):
         return obj
-    elif isinstance(obj, (MixTensor, BatchMixTensor)):
+    elif isinstance(obj, (MixTensor, Batches)):
         return obj.to_tensor()
-
     elif isinstance(obj, (int, bool, type(None))): 
         return obj
     else:
@@ -42,7 +39,8 @@ def to_compute_device(obj): # recursive
         return obj
 
 def to_mixed_device(obj, policy, prefix): 
-    if isinstance(obj, tuple) and len(obj) == 2 and isinstance(obj[0], torch.Tensor) and isinstance(obj[1], torch.Tensor): # KV cache
+    if isinstance(obj, tuple) and len(obj) == 2 and isinstance(obj[0], torch.Tensor) and isinstance(obj[1], torch.Tensor): 
+        # KV cache
         m0 = MixTensor.from_tensor(
             obj[0], 
             percents={
@@ -63,6 +61,7 @@ def to_mixed_device(obj, policy, prefix):
         )
         return (m0, m1)
     elif isinstance(obj, torch.Tensor):
+        # activations
         return MixTensor.from_tensor(
             obj, 
             percents={
@@ -82,18 +81,18 @@ def concat_outputs(outputs): # concatenate K outputs to one output
     assert len(outputs), 'empty outputs.'
     assert isinstance(outputs[0], (MixTensor, torch.Tensor, tuple)), f'not supported type: {type(outputs[0])}.'
     
-    if isinstance(outputs[0], torch.Tensor):
-        return torch.cat(outputs, dim=0)
-    elif isinstance(outputs[0], MixTensor):
-        return BatchMixTensor(outputs)
+    if isinstance(outputs[0], torch.Tensor | MixTensor):
+    #     return torch.cat(outputs, dim=0)
+    # elif isinstance(outputs[0], MixTensor):
+        return Batches(outputs)
     elif isinstance(outputs[0], tuple):
         def f(outputs):
             ans = []
             for elem in zip(*outputs):
-                if isinstance(elem[0], torch.Tensor):
-                    ans.append(torch.cat(elem, dim=0))
-                elif isinstance(elem[0], MixTensor):
-                    ans.append(BatchMixTensor(elem))
+                if isinstance(elem[0], torch.Tensor | MixTensor):
+                #     ans.append(torch.cat(elem, dim=0))
+                # elif isinstance(elem[0], MixTensor):
+                    ans.append(Batches(elem))
                 elif isinstance(elem[0], tuple):
                     ans.append(f(elem))
                 # else:
@@ -104,21 +103,20 @@ def concat_outputs(outputs): # concatenate K outputs to one output
         return f(outputs)
 
 
-def load_kth_batch_inputs(inputs, k, ngb): # for both args, kwargs, with a nested structure of tuple/list/dict/Tensor
+def get_kth_batch_inputs(inputs, k, ngb): 
+    """ 
+    for inputs with a nested structure of tuple/list/dict/Tensor/BatchMixTensor
+    """
     if isinstance(inputs, (tuple, list)): # e.g. args
-        return honor_type(inputs, (load_kth_batch_inputs(inp, k, ngb) for inp in inputs))
+        return honor_type(inputs, (get_kth_batch_inputs(inp, k, ngb) for inp in inputs))
     elif isinstance(inputs, Mapping): # e.g. kwargs
-        return type(inputs)({key:load_kth_batch_inputs(value, k, ngb) for key, value in inputs.items()})
+        return type(inputs)({key:get_kth_batch_inputs(value, k, ngb) for key, value in inputs.items()})
     elif isinstance(inputs, torch.Tensor):
         mini_size = inputs.size(0) // ngb
         return inputs[k * mini_size:(k + 1) * mini_size]
-    # elif isinstance(inputs, MixTensor):
-    #     inputs = inputs.to_tensor()
-    #     mini_size = inputs.size(0) // ngb
-    #     return inputs[k * mini_size:(k + 1) * mini_size]
-    elif isinstance(inputs, BatchMixTensor):
+    elif isinstance(inputs, Batches):
         mini_batch = inputs.batches[k]
-        return mini_batch.to_tensor()
+        return mini_batch#.to_tensor()
     elif isinstance(inputs, (int, bool, type(None))): 
         return inputs
     else:
