@@ -62,6 +62,7 @@ class MixTensor:
         percents: Mapping[str, float],
         file_path: str 
     ):
+        # tensor from compute device to g/c/d mixed device
         split_dim = cls.get_split_dim(tensor) 
         device = tensor.device # compute device 
         shape = tensor.shape
@@ -81,6 +82,7 @@ class MixTensor:
             d_data = (np_shape, np_dtype)
         else:
             d_data = None 
+        
         mix_data = (g_data, c_data, d_data)
         
         return cls(
@@ -94,9 +96,13 @@ class MixTensor:
         )
 
     def to_tensor(self):
+        # move g/c/d mixed data to compute device
         g_data, c_data, d_data = self.mix_data 
+        self.mix_data = None 
+
         compute_device = self.device 
 
+        # concatenation
         tensor = []
         if g_data is not None:
             g_data = g_data.to(compute_device) 
@@ -116,7 +122,7 @@ class MixTensor:
 
     def __add__(self, mix_tensor):
         assert self.shape == mix_tensor.shape and type(self) == type(mix_tensor) # is same shape mix tensor
-        res = self.to_tensor() + mix_tensor.to_tensor() # TODO: self.tensor
+        res = self.to_tensor() + mix_tensor.to_tensor() 
         return self.from_tensor(res, self.percents, self.file_path)
 
 
