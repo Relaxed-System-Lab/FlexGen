@@ -14,6 +14,8 @@ from utils import (
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
+__all__ = ["BlockPolicyLoader"]
+
 
 class BlockPolicyLoader:
     """
