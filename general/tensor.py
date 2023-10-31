@@ -135,9 +135,9 @@ class MixTensor:
         return self.from_tensor(res, self.percents, self.file_path)
 
 
-class BlockTensor:
+class BatchListTensor:
     '''
-    Tensor as a block consists of multiple batches
+    Tensor as listed multiple batches
     '''
     def __init__(self, batches: Iterable[Union[MixTensor, torch.Tensor]]):
         self.batches = batches  # list of K batches with the same shape

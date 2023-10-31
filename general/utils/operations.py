@@ -2,7 +2,7 @@ import torch
 from accelerate.utils import honor_type
 from typing import Mapping
 from utils import logging
-from tensor import MixTensor, BlockTensor
+from tensor import MixTensor, BatchListTensor
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -36,13 +36,13 @@ def get_info(obj):
         return honor_type(obj, (get_info(o) for o in obj))
     elif isinstance(obj, Mapping):
         return type(obj)({k: get_info(v) for k, v in obj.items()})
-    elif isinstance(obj, (torch.Tensor, MixTensor, BlockTensor)):
-        return f"<{obj.__class__.__name__}>: {tuple(obj.size())}, {obj.dtype}"
+    elif isinstance(obj, (torch.Tensor, MixTensor, BatchListTensor)):
+        return f"{obj.__class__.__name__}(shape={tuple(obj.size())}, dtype={obj.dtype})"
     elif isinstance(obj, (int, bool, type(None))):
         return f"{obj}"
     else:
         logger.warning(f"inputs: {obj} of type '{type(obj)}' is not implemented.")
-        return f"<{obj.__class__.__name__}>: {obj}"
+        return f"{obj.__class__.__name__}: {obj}"
 
 
 def to_compute_device(obj):
@@ -52,7 +52,7 @@ def to_compute_device(obj):
         return type(obj)({k: to_compute_device(v) for k, v in obj.items()})
     elif isinstance(obj, torch.Tensor):
         return obj
-    elif isinstance(obj, (MixTensor, BlockTensor)):
+    elif isinstance(obj, (MixTensor, BatchListTensor)):
         return obj.to_tensor()
     elif isinstance(obj, (int, bool, type(None))):
         return obj
@@ -124,14 +124,14 @@ def concat_outputs(outputs):  # concatenate K outputs to one output
     ), f"not supported type: {type(outputs[0])}."
 
     if isinstance(outputs[0], (torch.Tensor, MixTensor)):
-        return BlockTensor(outputs)
+        return BatchListTensor(outputs)
     elif isinstance(outputs[0], tuple):
 
         def f(outputs):
             ans = []
             for elem in zip(*outputs):
                 if isinstance(elem[0], (torch.Tensor, MixTensor)):
-                    ans.append(BlockTensor(elem))
+                    ans.append(BatchListTensor(elem))
                 elif isinstance(elem[0], tuple):
                     ans.append(f(elem))
                 else:
@@ -158,7 +158,7 @@ def get_kth_batch_inputs(inputs, k, ngb):
     elif isinstance(inputs, torch.Tensor):
         mini_size = inputs.size(0) // ngb
         return inputs[k * mini_size : (k + 1) * mini_size]
-    elif isinstance(inputs, BlockTensor):
+    elif isinstance(inputs, BatchListTensor):
         mini_batch = inputs.batches[k]
         return mini_batch
     elif isinstance(inputs, (int, bool, type(None))):

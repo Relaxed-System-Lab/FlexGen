@@ -1,11 +1,13 @@
 from utils import Policy, logging
-from wrapper import FlexGen
+from flexgen import FlexGen
 from utils.test import test_hf_gen
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
-checkpoint = "facebook/opt-125m"  # 125m 6.7b 13b 30b
+checkpoint = "facebook/opt-125m"  
+# checkpoint = "facebook/opt-1.3b"  
+# checkpoint = "facebook/opt-13b"
 # checkpoint = "Salesforce/codegen-350M-mono"
 # checkpoint = 'bigscience/bloom-560m' #
 
