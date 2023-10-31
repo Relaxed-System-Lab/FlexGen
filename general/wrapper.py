@@ -33,7 +33,6 @@ class FlexGen:
         self.weights_offload_dir = weights_offload_dir
         self.compute_device = compute_device if torch.cuda.is_available() else 'cpu'
         self.args_offload_dir = args_offload_dir 
-        os.makedirs(args_offload_dir, exist_ok=True) # in args offloader
 
         # mpl 
         mpl = ModelPolicyLoader(
@@ -47,11 +46,12 @@ class FlexGen:
         self.mpl = mpl
 
         # bpl
-        self.bpl = BlockPolicyLoader(
+        bpl = BlockPolicyLoader(
             policy=policy,
             args_offload_dir=args_offload_dir
         )
-        self.K = policy.num_gpu_batches # number of minibatches
+        self.K = bpl.K 
+        self.bpl = bpl 
 
     def __enter__(self): 
         self.model_to_flexgen()

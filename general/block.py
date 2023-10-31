@@ -1,5 +1,6 @@
 # split/merge layer input/output data structures to minibatch/batch
 
+import os 
 import torch 
 from accelerate.utils import honor_type
 from typing import Mapping
@@ -138,6 +139,8 @@ class BlockPolicyLoader:
     ):
         self.policy = policy 
         self.args_offload_dir = args_offload_dir 
+        os.makedirs(args_offload_dir, exist_ok=True) # in args offloader
+
         self.K = policy.num_gpu_batches
 
     def layer_init(self, inputs, layer_name):
