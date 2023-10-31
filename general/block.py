@@ -1,4 +1,4 @@
-# split/merge layer input/output data structures to minibatch/batch
+# block operations: split/merge layer input/output data structures to mini-batch/large-batch
 
 import os 
 import torch 
@@ -62,7 +62,7 @@ def to_mixed_device(obj, policy, prefix):
         )
         return (m0, m1)
     elif isinstance(obj, torch.Tensor):# and obj.dtype != torch.bool:
-        # activations
+        # activations / attention mask
         return MixTensor.from_tensor(
             obj, 
             percents={
@@ -87,30 +87,26 @@ def concat_outputs(outputs): # concatenate K outputs to one output
     assert isinstance(outputs[0], (MixTensor, torch.Tensor, tuple)), f'not supported type: {type(outputs[0])}.'
     
     if isinstance(outputs[0], torch.Tensor | MixTensor):
-    #     return torch.cat(outputs, dim=0)
-    # elif isinstance(outputs[0], MixTensor):
         return BlockTensor(outputs)
     elif isinstance(outputs[0], tuple):
         def f(outputs):
             ans = []
             for elem in zip(*outputs):
                 if isinstance(elem[0], torch.Tensor | MixTensor):
-                #     ans.append(torch.cat(elem, dim=0))
-                # elif isinstance(elem[0], MixTensor):
                     ans.append(BlockTensor(elem))
                 elif isinstance(elem[0], tuple):
                     ans.append(f(elem))
-                # else:
-                #     logger.warning(f'outputs: {elem[0]} of type \'{type(elem[0])}\' is not implemented.')
-                #     ans.append(elem[0])
+                else:
+                    logger.warning(f'outputs: {elem[0]} of type \'{type(elem[0])}\' is not implemented.')
+                    ans.append(elem[0])
             return tuple(ans)
 
         return f(outputs)
 
-
 def get_kth_batch_inputs(inputs, k, ngb): 
     """ 
-    for inputs with a nested structure of tuple/list/dict/Tensor/BatchMixTensor
+    get minibatch inputs with a nested structure of tuple/list/dict/Tensor/Block
+    here is no data I/O costs.
     """
     if isinstance(inputs, (tuple, list)): # e.g. args
         return honor_type(inputs, (get_kth_batch_inputs(inp, k, ngb) for inp in inputs))
@@ -121,7 +117,7 @@ def get_kth_batch_inputs(inputs, k, ngb):
         return inputs[k * mini_size:(k + 1) * mini_size]
     elif isinstance(inputs, BlockTensor):
         mini_batch = inputs.batches[k]
-        return mini_batch#.to_tensor()
+        return mini_batch 
     elif isinstance(inputs, (int, bool, type(None))): 
         return inputs
     else:
@@ -130,7 +126,9 @@ def get_kth_batch_inputs(inputs, k, ngb):
 
 class BlockPolicyLoader:
     """
-    block refers to: a layer's input/output data block
+    block: 
+        input/output data block of a layer, 
+        a block consist of multiple GPU batches.
     """
     def __init__(
         self, 
@@ -138,10 +136,9 @@ class BlockPolicyLoader:
         args_offload_dir = 'args_offload_dir'
     ):
         self.policy = policy 
+        self.K = policy.num_gpu_batches
         self.args_offload_dir = args_offload_dir 
         os.makedirs(args_offload_dir, exist_ok=True) # in args offloader
-
-        self.K = policy.num_gpu_batches
 
     def layer_init(self, inputs, layer_name):
         self.inputs = inputs 
