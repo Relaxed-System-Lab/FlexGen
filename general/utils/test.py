@@ -3,7 +3,7 @@ from transformers import AutoTokenizer
 from utils import logging
 
 
-def test_hf_gen(checkpoint, model, num_prompts, gen_len=30, prompts=None):
+def test_hf_gen(checkpoint, model, num_prompts, compute_device, gen_len=30, prompts=None):
     # test .generate() for huggingface CausalLM models.
 
     # prompts
@@ -25,7 +25,7 @@ def test_hf_gen(checkpoint, model, num_prompts, gen_len=30, prompts=None):
         tokenizer.pad_token = tokenizer.eos_token  # eos padding
 
     # inputs
-    inputs = tokenizer(prompts, return_tensors="pt", padding=True)
+    inputs = tokenizer(prompts, return_tensors="pt", padding=True).to(compute_device)
 
     # generate
     generate_ids = model.generate(

@@ -21,7 +21,8 @@ policy = Policy(
     overlap=True,
     pin_weight=True,
 )
+compute_device = "cpu"
 
-with FlexGen(checkpoint, policy, compute_device="cpu") as model:
+with FlexGen(checkpoint, policy, compute_device=compute_device) as model:
     num_prompts = policy.gpu_batch_size * policy.num_gpu_batches
-    test_hf_gen(checkpoint, model, num_prompts)
+    test_hf_gen(checkpoint, model, num_prompts, compute_device)
