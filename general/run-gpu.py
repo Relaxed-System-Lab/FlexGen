@@ -12,7 +12,7 @@ checkpoint = "facebook/opt-125m"
 # checkpoint = 'bigscience/bloom-560m' #
 
 policy = Policy(
-    gpu_batch_size=1,
+    gpu_batch_size=32,
     num_gpu_batches=4,
     weights_gpu_percent=0.2,
     weights_cpu_percent=0.3,
