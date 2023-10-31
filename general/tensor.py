@@ -1,4 +1,4 @@
-from typing import Mapping, Tuple, Iterable
+from typing import Mapping, Tuple, Iterable, Union
 import numpy as np
 from math import floor
 import torch
@@ -133,7 +133,7 @@ class MixTensor:
 
 
 class BlockTensor:
-    def __init__(self, batches: Iterable[MixTensor | torch.Tensor]):
+    def __init__(self, batches: Iterable[Union[MixTensor, torch.Tensor]]):
         self.batches = batches  # list of K batches with the same shape
 
         self.shape = self.size()

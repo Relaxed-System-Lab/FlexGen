@@ -103,14 +103,14 @@ def concat_outputs(outputs):  # concatenate K outputs to one output
         outputs[0], (MixTensor, torch.Tensor, tuple)
     ), f"not supported type: {type(outputs[0])}."
 
-    if isinstance(outputs[0], torch.Tensor | MixTensor):
+    if isinstance(outputs[0], (torch.Tensor, MixTensor)):
         return BlockTensor(outputs)
     elif isinstance(outputs[0], tuple):
 
         def f(outputs):
             ans = []
             for elem in zip(*outputs):
-                if isinstance(elem[0], torch.Tensor | MixTensor):
+                if isinstance(elem[0], (torch.Tensor, MixTensor)):
                     ans.append(BlockTensor(elem))
                 elif isinstance(elem[0], tuple):
                     ans.append(f(elem))
