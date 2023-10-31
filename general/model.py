@@ -446,8 +446,6 @@ class ModelPolicyLoader(MetaModel):
         )
         self.init_all_weights()
 
-        # TODO: streams: prev/curr/next layers
-
     def load_module_tensor(self, tensor_name, device):
         tensor = get_module_from_name(self.model, tensor_name)
         if tensor.device == device:

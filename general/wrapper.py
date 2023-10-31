@@ -51,6 +51,8 @@ class FlexGen:
         self.K = bpl.K
         self.bpl = bpl
 
+        # TODO: streams: prev/curr/next layers
+
     def __enter__(self):
         self.model_to_flexgen()
         return self.model
