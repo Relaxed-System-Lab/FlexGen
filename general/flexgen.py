@@ -52,18 +52,14 @@ class FlexGen:
         self.bpl = bpl
 
         # streams: prev/curr/next layers
-        self.use_cuda = False#torch.cuda.is_available()
-        self.streams = {
-            name: torch.cuda.Stream() if self.use_cuda else None
-            for name in [
-                "prev_layer",
-                "next_layer",
-                "prev_batch",
-                "next_batch",
-            ]
-        }
-        self.streams['curr_layer'] = torch.cuda.current_stream() if self.use_cuda else None
-        self.streams['curr_batch'] = torch.cuda.current_stream() if self.use_cuda else None
+        self.use_streams = torch.cuda.is_available()
+        self.streams = {}
+        self.streams['prev_layer'] = torch.cuda.Stream() if self.use_streams else None
+        self.streams['next_layer'] = torch.cuda.Stream() if self.use_streams else None
+        self.streams['prev_batch'] = torch.cuda.Stream() if self.use_streams else None
+        self.streams['next_batch'] = torch.cuda.Stream() if self.use_streams else None
+        self.streams['curr_layer'] = torch.cuda.current_stream() if self.use_streams else None
+        self.streams['curr_batch'] = torch.cuda.current_stream() if self.use_streams else None
         self.stream_names = list(self.streams.keys())
 
     def __enter__(self):
@@ -160,13 +156,13 @@ class FlexGen:
             self._load_next_batch(k)
 
     def batch_sync(self):
-        if self.use_cuda:
+        if self.use_streams:
             self.streams["prev_batch"].synchronize()
             self.streams["next_batch"].synchronize()
             self.streams["curr_batch"].synchronize()
 
     def layer_sync(self):
-        if self.use_cuda:
+        if self.use_streams:
             self.streams["prev_layer"].synchronize()
             self.streams["next_layer"].synchronize()
             self.streams["curr_layer"].synchronize()

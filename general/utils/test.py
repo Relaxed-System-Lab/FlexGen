@@ -3,7 +3,7 @@ from transformers import AutoTokenizer
 from utils import logging
 
 
-def test_hf_gen(checkpoint, model, num_prompts, compute_device, gen_len=30, prompts=None):
+def test_hf_gen(checkpoint, model, num_prompts, compute_device, gen_len=10, prompts=None):
     # test .generate() for huggingface CausalLM models.
 
     # prompts
