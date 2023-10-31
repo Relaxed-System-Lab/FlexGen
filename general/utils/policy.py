@@ -1,6 +1,9 @@
 from dataclasses import dataclass
 
 
+__all__ = ["Policy"]
+
+
 @dataclass(frozen=True)
 class Policy:
     gpu_batch_size: int

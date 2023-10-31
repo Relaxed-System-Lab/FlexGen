@@ -5,9 +5,9 @@ import functools
 
 import torch
 
-from model import ModelPolicyLoader
-from block import get_info, to_compute_device, BlockPolicyLoader
-from utils import logging, get_module_from_name, Policy
+from loaders.model import ModelPolicyLoader
+from loaders.block import BlockPolicyLoader
+from utils import logging, Policy, get_module_from_name, get_info, to_compute_device
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
