@@ -133,17 +133,16 @@ class BlockPolicyLoader:
     """
     def __init__(
         self, 
-        inputs, 
         policy: Policy,
-        layer_name, 
         args_offload_dir = 'args_offload_dir'
     ):
-        self.inputs = inputs 
         self.policy = policy 
-        self.layer_name = layer_name
         self.args_offload_dir = args_offload_dir 
-
         self.K = policy.num_gpu_batches
+
+    def layer_init(self, inputs, layer_name):
+        self.inputs = inputs 
+        self.layer_name = layer_name
         self.input_batches = [get_kth_batch_inputs(self.inputs, k, self.K) for k in range(self.K)]
         self.output_batches = [None for _ in range(self.K)]
 
