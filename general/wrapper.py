@@ -181,6 +181,11 @@ class FlexGen:
         else:
             self._load_next_batch(k)
 
+    # synchronize streams
+    def sync(self):
+        if self.use_cuda:
+            torch.cuda.synchronize()
+
     def get_flexgen_forward(
         self, old_forward, prev_layer_name, curr_layer_name, next_layer_name
     ):
@@ -223,8 +228,7 @@ class FlexGen:
                 self.store_prev_batch(k)
                 self.load_next_batch(k)
                 self.compute_curr_batch(k, old_forward)
-
-                # (TODO) sync: CUDA, Disk
+                self.sync()
 
             # concatenate outputs of K batches
             output = self.bpl.concat_outputs()
