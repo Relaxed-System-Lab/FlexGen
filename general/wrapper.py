@@ -51,7 +51,20 @@ class FlexGen:
         self.K = bpl.K
         self.bpl = bpl
 
-        # TODO: streams: prev/curr/next layers
+        # streams: prev/curr/next layers
+        self.use_cuda = torch.cuda.is_available()
+        self.stream_names = [
+            "prev_layer",
+            "curr_layer",
+            "next_layer",
+            "prev_batch",
+            "curr_batch",
+            "next_batch",
+        ]
+        self.streams = {
+            name: torch.cuda.Stream() if self.use_cuda else None
+            for name in self.stream_names
+        }
 
     def __enter__(self):
         self.model_to_flexgen()
@@ -77,6 +90,96 @@ class FlexGen:
     def model_reset(self):
         for j, _ in enumerate(self.layer_names):
             self.layer_reset(j)
+
+    # load next layers' weights
+    def load_next_layer(self, layer_name):
+        stream = self.streams["next_layer"]
+        if stream is not None:
+            with torch.cuda.stream(stream):
+                self.mpl.load_layer_weights(layer_name, self.compute_device)
+        else:
+            self.mpl.load_layer_weights(layer_name, self.compute_device)
+
+    # offload prev layer's weights
+    def offload_prev_layer(self, layer_name):
+        stream = self.streams["prev_layer"]
+        if stream is not None:
+            with torch.cuda.stream(stream):
+                self.mpl.offload_layer_weights(layer_name)
+        else:
+            self.mpl.offload_layer_weights(layer_name)
+
+    def _load_curr_layer(self, layer_name, inputs):
+        self.mpl.load_layer_weights(layer_name, self.compute_device)
+        self.bpl.layer_init(inputs=inputs, layer_name=layer_name)
+
+        # debug infos
+        args_k, kwargs_k = self.bpl.get_kth_input(1)
+        logger.debug(f"args_k: {get_info(args_k)}")
+        logger.debug(f"kwarg_k: {get_info(kwargs_k)}")
+
+    # load current weights (it should be already loaded except for the very 1st layer),
+    # prepare layer inputs but do not load
+    def prepare_curr_layer(self, layer_name, inputs):
+        stream = self.streams["curr_layer"]
+        if stream is not None:
+            with torch.cuda.stream(stream):
+                self._load_curr_layer(layer_name, inputs)
+        else:
+            self._load_curr_layer(layer_name, inputs)
+
+    def _store_prev_batch(self, k):
+        # k: current batch, and we need to store the output of prev batch
+        if k > 0:
+            self.bpl.offload_kth_output(k - 1)
+            logger.debug(
+                f"batch: {k - 1}, output: {get_info(self.bpl.get_kth_output(k - 1))}"
+            )
+        elif k == 0:  # corner case
+            self.bpl.offload_kth_input(-1)
+            logger.debug(
+                f"output of last layer batch: {self.K - 1}, as curr layer's input: {get_info(self.bpl.get_kth_input(-1))}"
+            )
+
+    # store prev batch output (act, kv)
+    def store_prev_batch(self, k):
+        stream = self.streams["prev_batch"]
+        if stream is not None:
+            with torch.cuda.stream(stream):
+                self._store_prev_batch(k)
+        else:
+            self._store_prev_batch(k)
+
+    def _compute_curr_batch(self, k, old_forward):
+        self.bpl.load_kth_input(k)
+        args_k, kwargs_k = self.bpl.get_kth_input(k)
+        output = old_forward(*args_k, **kwargs_k)
+        self.bpl.set_kth_output(k, output)
+
+    # load curr batch input (act, kv) and compute the k-th forward pass
+    def compute_curr_batch(self, k, old_forward):
+        stream = self.streams["curr_batch"]
+        if stream is not None:
+            with torch.cuda.stream(stream):
+                self._compute_curr_batch(k, old_forward)
+        else:
+            self._compute_curr_batch(k, old_forward)
+
+    def _load_next_batch(self, k):
+        assert self.K >= 2
+        if k < self.K - 1:
+            self.bpl.load_kth_input(k + 1)
+        else:  # corner case
+            self.bpl.load_kth_output(0)
+
+    # load next batch input (act, kv)
+    def load_next_batch(self, k):
+        stream = self.streams["next_batch"]
+        if stream is not None:
+            with torch.cuda.stream(stream):
+                self._load_next_batch(k)
+        else:
+            self._load_next_batch(k)
 
     def get_flexgen_forward(
         self, old_forward, prev_layer_name, curr_layer_name, next_layer_name
@@ -107,50 +210,23 @@ class FlexGen:
         @torch.no_grad()
         @functools.wraps(old_forward)
         def flexgen_forward(*args, **kwargs):
-            # 1. load current and next layers' weights, offload prev layer's weights (TODO: in parallel)
-            self.mpl.offload_layer_weights(prev_layer_name)
-            self.mpl.load_layer_weights(next_layer_name, self.compute_device)
-            # curr load -> curr compute
-            self.mpl.load_layer_weights(curr_layer_name, self.compute_device)
             logger.debug(f"layer: {curr_layer_name}")
             logger.debug(f"args: {get_info(args)}")
             logger.debug(f"kwargs: {get_info(kwargs)}")
 
-            self.bpl.layer_init(inputs=(args, kwargs), layer_name=curr_layer_name)
-            args_k, kwargs_k = self.bpl.get_kth_input(1)
-            logger.debug(f"args_k: {get_info(args_k)}")
-            logger.debug(f"kwarg_k: {get_info(kwargs_k)}")
+            # `6 steps' of FlexGen Algorithm 1
+            self.offload_prev_layer(layer_name=prev_layer_name)
+            self.load_next_layer(layer_name=next_layer_name)
+            self.prepare_curr_layer(layer_name=curr_layer_name, inputs=(args, kwargs))
 
             for k in range(self.K):
-                # 2. store prev batch output (act, kv)
-                if k > 0:
-                    self.bpl.offload_kth_output(k - 1)
-                    logger.debug(
-                        f"batch: {k - 1}, output: {get_info(self.bpl.get_kth_output(k - 1))}"
-                    )
-                elif k == 0:  # corner case
-                    self.bpl.offload_kth_input(-1)
-                    logger.debug(
-                        f"last layer, batch: {self.K - 1}, as curr layer's input: {get_info(self.bpl.get_kth_input(-1))}"
-                    )
+                self.store_prev_batch(k)
+                self.load_next_batch(k)
+                self.compute_curr_batch(k, old_forward)
 
-                # 3. load curr batch input (act, kv)
-                self.bpl.load_kth_input(k)
+                # (TODO) sync: CUDA, Disk
 
-                # 4. load next batch input (act, kv)
-                assert self.K >= 2
-                if k < self.K - 1:
-                    self.bpl.load_kth_input(k + 1)
-                else:  # corner case
-                    self.bpl.load_kth_output(0)
-
-                # 5. compute the k-th forward pass
-                args_k, kwargs_k = self.bpl.get_kth_input(k)
-                output = old_forward(*args_k, **kwargs_k)
-                self.bpl.set_kth_output(k, output)
-
-                # (TODO) 6. sync: CUDA, Disk
-
+            # concatenate outputs of K batches
             output = self.bpl.concat_outputs()
 
             # for the last layer (e.g. lm_head in OPT),
