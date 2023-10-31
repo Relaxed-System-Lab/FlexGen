@@ -5,6 +5,9 @@ import torch
 
 
 class MixTensor:
+    """
+    Tensor on mixed devices (gpu/cpu/disk)
+    """
     def __init__(
         self,
         mix_data: Tuple,
@@ -133,6 +136,9 @@ class MixTensor:
 
 
 class BlockTensor:
+    '''
+    Tensor as a block consists of multiple batches
+    '''
     def __init__(self, batches: Iterable[Union[MixTensor, torch.Tensor]]):
         self.batches = batches  # list of K batches with the same shape
 
