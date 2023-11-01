@@ -7,7 +7,7 @@ from utils.test import test_hf_gen
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
-# argparse 
+# argparse
 parser = argparse.ArgumentParser(description="Test-EOS_LLM")
 parser.add_argument(
     "--checkpoint",
@@ -15,11 +15,11 @@ parser.add_argument(
     default="facebook/opt-125m",
     metavar="S",
     help="HF model name, e.g. "
-        "facebook/opt-125m "
-        "facebook/opt-1.3b "
-        "facebook/opt-13b "
-        "Salesforce/codegen-350M-mono "
-        'bigscience/bloom-560m ' 
+    "facebook/opt-125m "
+    "facebook/opt-1.3b "
+    "facebook/opt-13b "
+    "Salesforce/codegen-350M-mono "
+    "bigscience/bloom-560m ",
 )
 parser.add_argument(
     "--compute_device",

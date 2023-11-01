@@ -4,10 +4,12 @@ from math import floor
 import torch
 from accelerate.utils import send_to_device
 
+
 class MixTensor:
     """
     Tensor on mixed devices (gpu/cpu/disk)
     """
+
     def __init__(
         self,
         mix_data: Tuple,
@@ -136,9 +138,10 @@ class MixTensor:
 
 
 class BatchListTensor:
-    '''
+    """
     Tensor as listed multiple batches
-    '''
+    """
+
     def __init__(self, batches: Iterable[Union[MixTensor, torch.Tensor]]):
         self.batches = batches  # list of K batches with the same shape
 

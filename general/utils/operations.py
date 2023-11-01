@@ -14,7 +14,7 @@ __all__ = [
     "to_mixed_device",
     "concat_outputs",
     "get_kth_batch_inputs",
-    "any_is_mix"
+    "any_is_mix",
 ]
 
 
@@ -45,6 +45,7 @@ def get_info(obj):
         logger.warning(f"inputs: {obj} of type '{type(obj)}' is not implemented.")
         return f"{obj.__class__.__name__}: {obj}"
 
+
 def _is_mix(obj):
     if isinstance(obj, (tuple, list)):
         for elem in obj:
@@ -54,11 +55,12 @@ def _is_mix(obj):
             yield from _is_mix(v)
     elif isinstance(obj, BatchListTensor):
         for elem in obj.batches:
-            yield from _is_mix(elem) 
+            yield from _is_mix(elem)
     elif isinstance(obj, MixTensor):
-        yield True 
+        yield True
     elif isinstance(obj, torch.Tensor):
-        yield False 
+        yield False
+
 
 def any_is_mix(obj):
     return any(_is_mix(obj))
@@ -107,7 +109,7 @@ def to_mixed_device(obj, policy, prefix):
             file_path=f"{prefix}.value.dat",
         )
         return (m0, m1)
-    elif isinstance(obj, torch.Tensor): 
+    elif isinstance(obj, torch.Tensor):
         # activations / attention mask
         return MixTensor.from_tensor(
             obj,

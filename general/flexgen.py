@@ -5,8 +5,7 @@ import functools
 
 import torch
 
-from loaders.model import ModelPolicyLoader
-from loaders.block import BlockPolicyLoader
+from loaders import ModelPolicyLoader, BlockPolicyLoader
 from utils import logging, Policy, get_module_from_name, get_info, to_compute_device
 
 logger = logging.getLogger(__name__)
@@ -54,12 +53,16 @@ class FlexGen:
         # streams: prev/curr/next layers
         self.use_streams = torch.cuda.is_available() and policy.overlap
         self.streams = {}
-        self.streams['prev_layer'] = torch.cuda.Stream() if self.use_streams else None
-        self.streams['next_layer'] = torch.cuda.Stream() if self.use_streams else None
-        self.streams['curr_layer'] = torch.cuda.current_stream() if self.use_streams else None
-        self.streams['prev_batch'] = torch.cuda.Stream() if self.use_streams else None
-        self.streams['next_batch'] = torch.cuda.Stream() if self.use_streams else None
-        self.streams['curr_batch'] = torch.cuda.current_stream() if self.use_streams else None
+        self.streams["prev_layer"] = torch.cuda.Stream() if self.use_streams else None
+        self.streams["next_layer"] = torch.cuda.Stream() if self.use_streams else None
+        self.streams["curr_layer"] = (
+            torch.cuda.current_stream() if self.use_streams else None
+        )
+        self.streams["prev_batch"] = torch.cuda.Stream() if self.use_streams else None
+        self.streams["next_batch"] = torch.cuda.Stream() if self.use_streams else None
+        self.streams["curr_batch"] = (
+            torch.cuda.current_stream() if self.use_streams else None
+        )
         self.stream_names = list(self.streams.keys())
 
     def __enter__(self):
@@ -124,11 +127,13 @@ class FlexGen:
             logger.debug(
                 f"batch: {k - 1}, offloaded output: {get_info(self.bpl.get_kth_output(k - 1))}"
             )
-        elif k == 0: # corner case
+        elif k == 0:  # corner case
             exists_mix = self.bpl.exists_mix_input()
             if exists_mix:
                 self.bpl.offload_kth_input(-1)
-            logger.debug(f"output of last layer, as curr layer's input, exists MixTensor: {exists_mix}")
+            logger.debug(
+                f"output of last layer, as curr layer's input, exists MixTensor: {exists_mix}"
+            )
             logger.debug(
                 f"batch: {self.K - 1}, offloaded input: {get_info(self.bpl.get_kth_input(-1))}"
             )
@@ -203,7 +208,7 @@ class FlexGen:
         post forward:
             1) offload current layer's weights (to mixed devices by policy)
         """
-        
+
         @torch.no_grad()
         @functools.wraps(old_forward)
         def flexgen_forward(*args, **kwargs):

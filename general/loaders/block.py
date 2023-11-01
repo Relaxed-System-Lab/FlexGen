@@ -8,7 +8,7 @@ from utils import (
     to_compute_device,
     to_mixed_device,
     concat_outputs,
-    any_is_mix
+    any_is_mix,
 )
 
 
