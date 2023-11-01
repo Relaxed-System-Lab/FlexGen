@@ -3,11 +3,11 @@
 
 TODO:
 - policy solver
-- profiler: cuda.event()
-- multiple GPU / tensor parallelism
+- profiler: cuda event
+- multiple GPU / tensor parallelism: devices manager
 - various inference algorithms (including: ?)
 
 Example:
 ```shell
-python run.py
+python3 run.py --checkpoint facebook/opt-1.3b --compute_device cuda:0
 ```

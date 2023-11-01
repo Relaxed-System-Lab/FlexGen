@@ -2,3 +2,5 @@
 *.dat 
 test.ipynb
 test
+logs
+*.log 

@@ -8,6 +8,7 @@ from utils import (
     to_compute_device,
     to_mixed_device,
     concat_outputs,
+    any_is_mix
 )
 
 
@@ -51,6 +52,9 @@ class BlockPolicyLoader:
             self.policy,
             prefix=f"{self.args_offload_dir}/{self.layer_name}.batch.{k}.input",
         )
+
+    def exists_mix_input(self):
+        return any_is_mix(self.input_batches)
 
     # for output
     def set_kth_output(self, k, output):

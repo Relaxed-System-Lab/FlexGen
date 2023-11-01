@@ -2,7 +2,7 @@ from typing import Mapping, Tuple, Iterable, Union
 import numpy as np
 from math import floor
 import torch
-
+from accelerate.utils import send_to_device
 
 class MixTensor:
     """
@@ -74,7 +74,7 @@ class MixTensor:
         g_data, c_data, d_data = cls.split_tensor(tensor, split_dim, percents)
 
         g_data = (
-            g_data.to("cuda" if torch.cuda.is_available() else "cpu")
+            g_data.to("cuda:0" if torch.cuda.is_available() else "cpu")
             if g_data.numel()
             else None
         )
