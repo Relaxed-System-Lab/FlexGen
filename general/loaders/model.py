@@ -77,6 +77,7 @@ class MetaModel:
             f for f in os.listdir(self.offload_folder) if f.endswith(".dat")
         ]
         self.model = self.get_empty_model()
+        self.model_name = self.model.__class__.__name__
         self.tied_params = find_tied_parameters(self.model)
         logger.info(f"tied_params: {self.tied_params}")
 
@@ -347,7 +348,7 @@ class MetaModel:
         set_module_tensor_to_device(self.model, tensor_name, "meta")
 
     def layer_cpu_load(self, layer_name):
-        logger.debug(f"load_layer_weights: CausalLM.{layer_name} to cpu")
+        logger.debug(f"load_layer_weights: {self.model_name}.{layer_name} to cpu")
         layer_module = get_module_from_name(self.model, layer_name)
         weight_names = [
             layer_name + "." + name
@@ -365,7 +366,7 @@ class MetaModel:
             self.tensor_cpu_load(w)
 
     def layer_cpu_offload(self, layer_name):
-        logger.debug(f"offload_layer_weights: CausalLM.{layer_name} to meta\n\n")
+        logger.debug(f"offload_layer_weights: {self.model_name}.{layer_name} to meta\n\n")
         layer_module = get_module_from_name(self.model, layer_name)
         weight_names = [
             layer_name + "." + name
@@ -486,7 +487,7 @@ class ModelPolicyLoader(MetaModel):
             set_module_tensor_to_device(self.model, tensor_name, device, tensor)
 
     def load_layer_weights(self, layer_name, compute_device):
-        logger.debug(f"load_layer_weights: CausalLM.{layer_name} to {compute_device}")
+        logger.debug(f"load_layer_weights: {self.model_name}.{layer_name} to {compute_device}")
         layer_module = get_module_from_name(self.model, layer_name)
         weight_names = [
             layer_name + "." + name
@@ -504,7 +505,7 @@ class ModelPolicyLoader(MetaModel):
             self.load_module_tensor(w, compute_device)
 
     def offload_layer_weights(self, layer_name):
-        logger.debug(f"offload_layer_weights: CausalLM.{layer_name}")
+        logger.debug(f"offload_layer_weights: {self.model_name}.{layer_name}")
         layer_module = get_module_from_name(self.model, layer_name)
         weight_names = [
             layer_name + "." + name
