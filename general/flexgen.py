@@ -202,20 +202,24 @@ class FlexGen:
 
     def batch_sync(self):
         if self.use_streams:
-            stream_names = ['prev_batch', 'next_batch']
-            for stream_name in stream_names:
-                stream = self.streams[stream_name]
-                self.streams['curr_batch'].wait_stream(stream)
+            torch.cuda.synchronize()
+            # stream_names = ['prev_batch', 'next_batch']
+            # for stream_name in stream_names:
+            #     stream = self.streams[stream_name]
+            #     self.streams['curr_batch'].wait_stream(stream)
+
             # self.streams["prev_batch"].synchronize()
             # self.streams["next_batch"].synchronize()
             # self.streams["curr_batch"].synchronize()
 
     def layer_sync(self):
         if self.use_streams:
-            stream_names = ['prev_layer', 'next_layer']
-            for stream_name in stream_names:
-                stream = self.streams[stream_name]
-                self.streams['curr_layer'].wait_stream(stream)
+            torch.cuda.synchronize()
+            # stream_names = ['prev_layer', 'next_layer']
+            # for stream_name in stream_names:
+            #     stream = self.streams[stream_name]
+            #     self.streams['curr_layer'].wait_stream(stream)
+
             # self.streams["prev_layer"].synchronize()
             # self.streams["next_layer"].synchronize()
             # self.streams["curr_layer"].synchronize()
@@ -252,7 +256,7 @@ class FlexGen:
         @torch.no_grad()
         @functools.wraps(old_forward)
         def flexgen_forward(*args, **kwargs):
-            logger.debug(f"layer: {curr_layer_name}")
+            logger.debug(f"layer: {curr_layer_name} calls forward")
             logger.debug(f"args: {get_info(args)}")
             logger.debug(f"kwargs: {get_info(kwargs)}")
 
@@ -260,6 +264,7 @@ class FlexGen:
             self.offload_prev_layer(layer_name=prev_layer_name)
             self.load_next_layer(layer_name=next_layer_name)
             self.prepare_curr_layer(layer_name=curr_layer_name, inputs=(args, kwargs))
+            torch.cuda.synchronize()
 
             for k in range(self.K):
                 self.store_prev_batch(k)
