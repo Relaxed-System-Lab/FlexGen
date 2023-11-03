@@ -148,6 +148,9 @@ class PrevBatchMixin:
             )
 
     def store_prev_batch(self, k):
+        if self.use_streams:
+            self.streams["curr_layer"].synchronize() # wait for current layer preparation
+
         stream = self.streams["prev_batch"]
         with torch.cuda.stream(stream):
             self._store_prev_batch(k)
@@ -166,6 +169,9 @@ class CurrBatchMixin:
         logger.debug(f'batch: {k}, computed')
 
     def compute_curr_batch(self, k, old_forward):
+        if self.use_streams:
+            self.streams["curr_layer"].synchronize() # wait for current layer preparation
+
         stream = self.streams["curr_batch"]
         with torch.cuda.stream(stream):
             self._compute_curr_batch(k, old_forward)
@@ -190,6 +196,9 @@ class NextBatchMixin:
             logger.debug(f'batch: {0}, loaded input: {get_info(self.bpl.get_kth_input(0))}')
 
     def load_next_batch(self, k):
+        if self.use_streams:
+            self.streams["curr_layer"].synchronize() # wait for current layer preparation
+
         stream = self.streams["next_batch"]
         with torch.cuda.stream(stream):
             self._load_next_batch(k)
@@ -200,15 +209,15 @@ class SyncMixin:
     """
     def batch_sync(self):
         if self.use_streams:
-            torch.cuda.synchronize()
+            # torch.cuda.synchronize()
             # stream_names = ['prev_batch', 'next_batch']
             # for stream_name in stream_names:
             #     stream = self.streams[stream_name]
             #     self.streams['curr_batch'].wait_stream(stream)
 
-            # self.streams["prev_batch"].synchronize()
-            # self.streams["next_batch"].synchronize()
-            # self.streams["curr_batch"].synchronize()
+            self.streams["prev_batch"].synchronize()
+            self.streams["next_batch"].synchronize()
+            self.streams["curr_batch"].synchronize()
 
     def layer_sync(self):
         if self.use_streams:
@@ -283,7 +292,6 @@ class FlexGen(
             self.offload_prev_layer(layer_name=prev_layer_name)
             self.load_next_layer(layer_name=next_layer_name)
             self.prepare_curr_layer(layer_name=curr_layer_name, inputs=(args, kwargs))
-            torch.cuda.synchronize()
 
             for k in range(self.K):
                 self.store_prev_batch(k)
@@ -302,7 +310,6 @@ class FlexGen(
             logger.debug(f"outputs after concat: {get_info(output)}")
 
             self.layer_sync()
-            # torch.cuda.synchronize()
             logger.debug("over.\n\n")
 
             return output

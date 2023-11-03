@@ -1,8 +1,8 @@
 import argparse
 
-from utils import Policy, logging
-from flexgen import FlexGen
+from utils import logging
 from utils.test import test_hf_gen
+from flexgen import FlexGen, Policy
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -40,7 +40,7 @@ checkpoint = args.checkpoint
 compute_device = args.compute_device
 overlap = not args.normal_loop
 policy = Policy(
-    gpu_batch_size=2,
+    gpu_batch_size=32,
     num_gpu_batches=4,
     weights_gpu_percent=0.2,
     weights_cpu_percent=0.3,
