@@ -12,14 +12,10 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
 
-class FlexGen:
+class FlexGenAssets:
     """
-    override the forward method for each layer (e.g. embedding layers, transformer blocks, etc.) of a CausalLM.
-    example:
-        >>> with FlexGen(checkpoint, policy) as model:
-        >>>     model.generate(...)
+    Assets that FlexGen need to utilize: loaders (by policy), streams, etc.
     """
-
     def __init__(
         self,
         checkpoint: str,
@@ -50,7 +46,7 @@ class FlexGen:
         self.K = bpl.K
         self.bpl = bpl
 
-        # streams: prev/curr/next layers
+        # streams: prev/curr/next layers/batches
         self.use_streams = torch.cuda.is_available() and policy.overlap
         self.streams = {}
         self.streams["prev_layer"] = torch.cuda.Stream() if self.use_streams else None
@@ -67,32 +63,11 @@ class FlexGen:
         )
         self.stream_names = list(self.streams.keys())
 
-    def __enter__(self):
-        self.model_to_flexgen()
-        return self.model
-
-    def __exit__(self, *exception_infos):
-        self.model_reset()
-        shutil.rmtree(self.args_offload_dir)
-        os.makedirs(self.args_offload_dir, exist_ok=True)
-
-    def layer_reset(self, j):
-        """
-        reset a layer's forward method to its original version.
-        """
-        layer_name = self.layer_names[j]
-        layer = get_module_from_name(self.model, layer_name)
-
-        if hasattr(layer, "_flexgen_old_forward"):
-            layer.forward = layer._flexgen_old_forward
-            delattr(layer, "_flexgen_old_forward")
-            logger.debug(f"{layer_name} from flexgen to old.")
-
-    def model_reset(self):
-        for j, _ in enumerate(self.layer_names):
-            self.layer_reset(j)
-
-    # load next layers' weights: TODO: profiling decorator @profile
+class NextLayerMixin:
+    """
+    load next layers' weights.
+    """
+    # TODO: profiling decorator @profile
     def _load_next_layer(self, layer_name):
         self.mpl.load_layer_weights(layer_name, self.compute_device)
     
@@ -104,7 +79,10 @@ class FlexGen:
         with torch.cuda.stream(stream):
             self._load_next_layer(layer_name)
 
-    # offload prev layer's weights
+class PrevLayerMixin:
+    """
+    offload prev layer's weights.
+    """
     def _offload_prev_layer(self, layer_name):
         self.mpl.offload_layer_weights(layer_name)
     
@@ -116,8 +94,12 @@ class FlexGen:
         with torch.cuda.stream(stream):
             self._offload_prev_layer(layer_name)
 
-    # load current weights (it should be already loaded except for the very 1st layer),
-    # prepare layer inputs but do not load
+class CurrLayerMixin:
+    """
+    1. load current weights (it should be already loaded except for the very 1st layer)
+    2. prepare layer input args, kwargs (but do not load them)
+    3. concat mini-outputs after computing all mini-batches
+    """
     def _prepare_curr_layer(self, layer_name, inputs):
         self.mpl.load_layer_weights(layer_name, self.compute_device)
         self.bpl.layer_init(inputs=inputs, layer_name=layer_name)
@@ -133,7 +115,13 @@ class FlexGen:
         with torch.cuda.stream(stream):
             self._prepare_curr_layer(layer_name, inputs)
 
-    # store prev batch output (act, kv)
+    def concat_outputs(self):
+        return self.bpl.concat_outputs()
+
+class PrevBatchMixin:
+    """
+    store prev batch output (act, kv).
+    """
     def _store_prev_batch(self, k):
         # k: current batch, to store: prev batch
         assert self.K >= 2
@@ -164,7 +152,10 @@ class FlexGen:
         with torch.cuda.stream(stream):
             self._store_prev_batch(k)
 
-    # load curr batch input (act, kv) and compute the k-th forward pass
+class CurrBatchMixin:
+    """
+    load curr batch input (act, kv) and compute the k-th forward pass.
+    """
     def _compute_curr_batch(self, k, old_forward):
         self.bpl.load_kth_input(k)
         args_k, kwargs_k = self.bpl.get_kth_input(k)
@@ -179,7 +170,10 @@ class FlexGen:
         with torch.cuda.stream(stream):
             self._compute_curr_batch(k, old_forward)
 
-    # load next batch input (act, kv)
+class NextBatchMixin:
+    """
+    load next batch input (act, kv).
+    """
     def _load_next_batch(self, k):
         assert self.K >= 2
         if k < self.K - 1:
@@ -200,6 +194,10 @@ class FlexGen:
         with torch.cuda.stream(stream):
             self._load_next_batch(k)
 
+class SyncMixin:
+    """
+    Synchronizations.
+    """
     def batch_sync(self):
         if self.use_streams:
             torch.cuda.synchronize()
@@ -224,8 +222,27 @@ class FlexGen:
             # self.streams["next_layer"].synchronize()
             # self.streams["curr_layer"].synchronize()
 
-    def concat_outputs(self):
-        return self.bpl.concat_outputs()
+class FlexGen(
+    PrevLayerMixin,CurrLayerMixin,NextLayerMixin,
+    PrevBatchMixin,CurrBatchMixin,NextBatchMixin,
+    SyncMixin,
+    FlexGenAssets
+): 
+    """
+    override the forward method for each layer (e.g. embedding layers, transformer blocks, etc.) of a CausalLM.
+    example:
+        >>> with FlexGen(checkpoint, policy) as model:
+        >>>     model.generate(...)
+    """
+
+    def __enter__(self):
+        self.model_to_flexgen()
+        return self.model
+
+    def __exit__(self, *exception_infos):
+        self.model_reset()
+        shutil.rmtree(self.args_offload_dir)
+        os.makedirs(self.args_offload_dir, exist_ok=True)
 
     def get_flexgen_forward(
         self, old_forward, prev_layer_name, curr_layer_name, next_layer_name
@@ -233,24 +250,26 @@ class FlexGen:
         """
         override the j-th layer's forward function to FlexGen version.
 
-        pre forward:
+        'pre' forward:
             1) load current layer's weights (to compute device)
             2) load next layer's weights (to compute device)
-        call forward:
+        'call' forward:
             1) split the input databatch to K minibatches
                 a) input databatch: *args and **kwargs
                 b) minibatches: lists of *args_k and **kwargs_k
             2) call layer.forward for each minibatch, and for each mini-call:
                 a) pre mini-call:
-                    * load current minibatch's data (to compute device)
-                    * load next minibatch's data (to compute device)
+                    * load current minibatch's input (to compute device)
+                    * load next minibatch's input (to compute device)
                 b) mini-call forward:
                     * output_k = layer.forward(*args_k, **kwargs_k)
                 c) post mini-call:
-                    * free current minibatch's data
+                    * free current minibatch's input
                     * offload current minibatch's output (to mixed devices by policy)
-        post forward:
+        'post' forward:
             1) offload current layer's weights (to mixed devices by policy)
+        
+        The 'pre', 'call', and 'post' forward above are executed in parallel.
         """
 
         @torch.no_grad()
@@ -314,3 +333,19 @@ class FlexGen:
     def model_to_flexgen(self):
         for j, _ in enumerate(self.layer_names):
             self.layer_to_flexgen(j)
+
+    def layer_reset(self, j):
+        """
+        reset a layer's forward method to its original version.
+        """
+        layer_name = self.layer_names[j]
+        layer = get_module_from_name(self.model, layer_name)
+
+        if hasattr(layer, "_flexgen_old_forward"):
+            layer.forward = layer._flexgen_old_forward
+            delattr(layer, "_flexgen_old_forward")
+            logger.debug(f"{layer_name} from flexgen to old.")
+
+    def model_reset(self):
+        for j, _ in enumerate(self.layer_names):
+            self.layer_reset(j)
