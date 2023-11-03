@@ -149,6 +149,10 @@ class BatchListTensor:
         self.dtype = batches[0].dtype
         self.device = batches[0].device  # compute device
 
+    @property
+    def has_mix(self):
+        return any(isinstance(batch, MixTensor) for batch in self.batches)
+
     def size(self, dim=None):
         shape = list(self.batches[0].size())
         shape[0] *= len(self.batches)

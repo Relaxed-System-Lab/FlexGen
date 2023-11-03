@@ -57,11 +57,13 @@ class FlexGen:
         self.streams["next_layer"] = torch.cuda.Stream() if self.use_streams else None
         self.streams["curr_layer"] = (
             torch.cuda.current_stream() if self.use_streams else None
+            # torch.cuda.Stream() if self.use_streams else None
         )
         self.streams["prev_batch"] = torch.cuda.Stream() if self.use_streams else None
         self.streams["next_batch"] = torch.cuda.Stream() if self.use_streams else None
         self.streams["curr_batch"] = (
             torch.cuda.current_stream() if self.use_streams else None
+            # torch.cuda.Stream() if self.use_streams else None
         )
         self.stream_names = list(self.streams.keys())
 
@@ -91,16 +93,28 @@ class FlexGen:
             self.layer_reset(j)
 
     # load next layers' weights: TODO: profiling decorator @profile
+    def _load_next_layer(self, layer_name):
+        self.mpl.load_layer_weights(layer_name, self.compute_device)
+    
+    def _load_next_layer_log(self, layer_name):
+        logger.debug(f"load_layer_weights: {self.mpl.model_name}.{layer_name} to {self.compute_device}")
+
     def load_next_layer(self, layer_name):
         stream = self.streams["next_layer"]
         with torch.cuda.stream(stream):
-            self.mpl.load_layer_weights(layer_name, self.compute_device)
+            self._load_next_layer(layer_name)
 
     # offload prev layer's weights
+    def _offload_prev_layer(self, layer_name):
+        self.mpl.offload_layer_weights(layer_name)
+    
+    def _offload_prev_layer_log(self, layer_name):
+        logger.debug(f"offload_layer_weights: {self.mpl.model_name}.{layer_name} by policy.")
+
     def offload_prev_layer(self, layer_name):
         stream = self.streams["prev_layer"]
         with torch.cuda.stream(stream):
-            self.mpl.offload_layer_weights(layer_name)
+            self._offload_prev_layer(layer_name)
 
     # load current weights (it should be already loaded except for the very 1st layer),
     # prepare layer inputs but do not load
@@ -108,6 +122,7 @@ class FlexGen:
         self.mpl.load_layer_weights(layer_name, self.compute_device)
         self.bpl.layer_init(inputs=inputs, layer_name=layer_name)
 
+    def _prepare_curr_layer_log(self, layer_name, inputs):
         # debug infos
         args_k, kwargs_k = self.bpl.get_kth_input(1)
         logger.debug(f"args_k: {get_info(args_k)}")
@@ -124,13 +139,19 @@ class FlexGen:
         assert self.K >= 2
         if k > 0:
             self.bpl.offload_kth_output(k - 1)
+        elif k == 0:  # corner case
+            exists_mix = self.bpl.exists_mix_input()
+            if exists_mix:
+                self.bpl.offload_kth_input(-1)
+
+    def _store_prev_batch_log(self, k):
+        assert self.K >= 2
+        if k > 0:
             logger.debug(
                 f"batch: {k - 1}, offloaded output: {get_info(self.bpl.get_kth_output(k - 1))}"
             )
         elif k == 0:  # corner case
             exists_mix = self.bpl.exists_mix_input()
-            if exists_mix:
-                self.bpl.offload_kth_input(-1)
             logger.debug(
                 f"output of last layer, as curr layer's input, exists MixTensor: {exists_mix}"
             )
@@ -150,6 +171,9 @@ class FlexGen:
         output = old_forward(*args_k, **kwargs_k)
         self.bpl.set_kth_output(k, output)
 
+    def _compute_curr_batch_log(self, k, old_forward):
+        logger.debug(f'batch: {k}, computed')
+
     def compute_curr_batch(self, k, old_forward):
         stream = self.streams["curr_batch"]
         with torch.cuda.stream(stream):
@@ -163,6 +187,14 @@ class FlexGen:
         else:  # corner case
             self.bpl.load_kth_output(0)
 
+    def _load_next_batch_log(self, k):
+        assert self.K >= 2
+        if k < self.K - 1:
+            logger.debug(f'batch: {k + 1}, loaded output: {get_info(self.bpl.get_kth_output(k + 1))}')
+        else:  # corner case
+            logger.debug(f"input of next layer, as curr layer's output")
+            logger.debug(f'batch: {0}, loaded input: {get_info(self.bpl.get_kth_input(0))}')
+
     def load_next_batch(self, k):
         stream = self.streams["next_batch"]
         with torch.cuda.stream(stream):
@@ -170,15 +202,23 @@ class FlexGen:
 
     def batch_sync(self):
         if self.use_streams:
-            self.streams["prev_batch"].synchronize()
-            self.streams["next_batch"].synchronize()
-            self.streams["curr_batch"].synchronize()
+            stream_names = ['prev_batch', 'next_batch']
+            for stream_name in stream_names:
+                stream = self.streams[stream_name]
+                self.streams['curr_batch'].wait_stream(stream)
+            # self.streams["prev_batch"].synchronize()
+            # self.streams["next_batch"].synchronize()
+            # self.streams["curr_batch"].synchronize()
 
     def layer_sync(self):
         if self.use_streams:
-            self.streams["prev_layer"].synchronize()
-            self.streams["next_layer"].synchronize()
-            self.streams["curr_layer"].synchronize()
+            stream_names = ['prev_layer', 'next_layer']
+            for stream_name in stream_names:
+                stream = self.streams[stream_name]
+                self.streams['curr_layer'].wait_stream(stream)
+            # self.streams["prev_layer"].synchronize()
+            # self.streams["next_layer"].synchronize()
+            # self.streams["curr_layer"].synchronize()
 
     def concat_outputs(self):
         return self.bpl.concat_outputs()
@@ -226,6 +266,7 @@ class FlexGen:
                 self.load_next_batch(k)
                 self.compute_curr_batch(k, old_forward)
                 self.batch_sync()
+                # torch.cuda.synchronize()
 
             # concatenate outputs of K batches.
             # And for the last layer (e.g. lm_head in OPT),
@@ -237,6 +278,7 @@ class FlexGen:
             logger.debug(f"outputs after concat: {get_info(output)}")
 
             self.layer_sync()
+            # torch.cuda.synchronize()
             logger.debug("over.\n\n")
 
             return output

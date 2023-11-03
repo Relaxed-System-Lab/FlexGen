@@ -28,13 +28,19 @@ parser.add_argument(
     metavar="S",
     help="compute device (cpu or cuda)",
 )
+parser.add_argument(
+    "--normal_loop",
+    action='store_true',
+    help="no overlap",
+)
 args = parser.parse_args()
 
 # flexgen config
 checkpoint = args.checkpoint
 compute_device = args.compute_device
+overlap = not args.normal_loop
 policy = Policy(
-    gpu_batch_size=32,
+    gpu_batch_size=2,
     num_gpu_batches=4,
     weights_gpu_percent=0.2,
     weights_cpu_percent=0.3,
@@ -43,7 +49,7 @@ policy = Policy(
     act_gpu_percent=1,
     act_cpu_percent=0,
     # overlap=False,
-    overlap=True,
+    overlap=overlap,
     pin_weight=True,
 )
 

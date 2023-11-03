@@ -37,8 +37,10 @@ def get_info(obj):
         return honor_type(obj, (get_info(o) for o in obj))
     elif isinstance(obj, Mapping):
         return type(obj)({k: get_info(v) for k, v in obj.items()})
-    elif isinstance(obj, (torch.Tensor, MixTensor, BatchListTensor)):
+    elif isinstance(obj, (torch.Tensor, MixTensor)):
         return f"{obj.__class__.__name__}(shape={tuple(obj.size())}, dtype={obj.dtype})"
+    elif isinstance(obj, (BatchListTensor)):
+        return f"{obj.__class__.__name__}(shape={tuple(obj.size())}, dtype={obj.dtype}, has_mix={obj.has_mix})"
     elif isinstance(obj, (int, bool, type(None))):
         return f"{obj}"
     else:
