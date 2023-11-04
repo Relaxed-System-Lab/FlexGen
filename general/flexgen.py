@@ -63,7 +63,7 @@ class NextLayerMixin:
     def _load_next_layer(self, layer_name):
         self.mpl.load_layer_weights(layer_name, self.compute_device)
     
-    def _load_next_layer_log(self, layer_name):
+    def load_next_layer_log(self, layer_name):
         logger.debug(f"load_layer_weights: {self.mpl.model_name}.{layer_name} to {self.compute_device}")
 
     def load_next_layer(self, layer_name):
@@ -78,7 +78,7 @@ class PrevLayerMixin:
     def _offload_prev_layer(self, layer_name):
         self.mpl.offload_layer_weights(layer_name)
     
-    def _offload_prev_layer_log(self, layer_name):
+    def offload_prev_layer_log(self, layer_name):
         logger.debug(f"offload_layer_weights: {self.mpl.model_name}.{layer_name} by policy.")
 
     def offload_prev_layer(self, layer_name):
@@ -96,15 +96,15 @@ class CurrLayerMixin:
         self.mpl.load_layer_weights(layer_name, self.compute_device)
         self.bpl.layer_init(inputs=inputs, layer_name=layer_name)
 
-    def _prepare_curr_layer_log(self, layer_name, inputs):
+    def prepare_curr_layer_log(self, layer_name, inputs):
         # debug infos
+        logger.debug(f'weights and inputs of {layer_name} are prepared')
         args_k, kwargs_k = self.bpl.get_kth_input(1)
         logger.debug(f"args_k: {get_info(args_k)}")
         logger.debug(f"kwarg_k: {get_info(kwargs_k)}")
 
     def prepare_curr_layer(self, layer_name, inputs):
         self._prepare_curr_layer(layer_name, inputs)
-        torch.cuda.current_stream().synchronize()
 
     def concat_outputs(self):
         return self.bpl.concat_outputs()
@@ -123,19 +123,19 @@ class PrevBatchMixin:
             if exists_mix:
                 self.bpl.offload_kth_input(-1)
 
-    def _store_prev_batch_log(self, k):
+    def store_prev_batch_log(self, k):
         assert self.K >= 2
         if k > 0:
             logger.debug(
-                f"batch: {k - 1}, offloaded output: {get_info(self.bpl.get_kth_output(k - 1))}"
+                f"offloaded output of batch {k - 1}: {get_info(self.bpl.get_kth_output(k - 1))}"
             )
         elif k == 0:  # corner case
             exists_mix = self.bpl.exists_mix_input()
             logger.debug(
-                f"output of last layer, as curr layer's input, exists MixTensor: {exists_mix}"
+                f"output from last layer is the input of curr layer, exists MixTensor: {exists_mix}"
             )
             logger.debug(
-                f"batch: {self.K - 1}, offloaded input: {get_info(self.bpl.get_kth_input(-1))}"
+                f"offloaded input of batch {self.K - 1}: {get_info(self.bpl.get_kth_input(-1))}"
             )
 
     def store_prev_batch(self, k):
@@ -153,8 +153,8 @@ class CurrBatchMixin:
         output = old_forward(*args_k, **kwargs_k)
         self.bpl.set_kth_output(k, output)
 
-    def _compute_curr_batch_log(self, k, old_forward):
-        logger.debug(f'batch: {k}, computed')
+    def compute_curr_batch_log(self, k, old_forward):
+        logger.debug(f'computed batch {k}')
 
     def compute_curr_batch(self, k, old_forward):
         self._compute_curr_batch(k, old_forward)
@@ -170,13 +170,13 @@ class NextBatchMixin:
         else:  # corner case
             self.bpl.load_kth_output(0)
 
-    def _load_next_batch_log(self, k):
+    def load_next_batch_log(self, k):
         assert self.K >= 2
         if k < self.K - 1:
-            logger.debug(f'batch: {k + 1}, loaded output: {get_info(self.bpl.get_kth_output(k + 1))}')
+            logger.debug(f'loaded input of batch {k + 1}: {get_info(self.bpl.get_kth_input(k + 1))}')
         else:  # corner case
-            logger.debug(f"input of next layer, as curr layer's output")
-            logger.debug(f'batch: {0}, loaded input: {get_info(self.bpl.get_kth_input(0))}')
+            logger.debug(f"curr layer's output is next layer's input")
+            logger.debug(f'loaded output of batch {0}: {get_info(self.bpl.get_kth_output(0))}')
 
     def load_next_batch(self, k):
         stream = self.streams["next_batch"]
@@ -258,13 +258,22 @@ class FlexGen(
             self.offload_prev_layer(layer_name=prev_layer_name)
             self.load_next_layer(layer_name=next_layer_name)
             self.prepare_curr_layer(layer_name=curr_layer_name, inputs=(args, kwargs))
+            torch.cuda.current_stream().synchronize() 
+
+            # log after sync
+            self.prepare_curr_layer_log(layer_name=curr_layer_name, inputs=(args, kwargs))
 
             for k in range(self.K):
                 self.store_prev_batch(k)
                 self.load_next_batch(k)
                 self.compute_curr_batch(k, old_forward)
                 self.batch_sync()
-                # torch.cuda.synchronize()
+                
+                # log after sync
+                self.store_prev_batch_log(k)
+                self.compute_curr_batch_log(k, old_forward)
+                self.load_next_batch_log(k)
+                logger.debug('')
 
             # concatenate outputs of K batches.
             # And for the last layer (e.g. lm_head in OPT),
@@ -276,6 +285,10 @@ class FlexGen(
             logger.debug(f"outputs after concat: {get_info(output)}")
 
             self.layer_sync()
+
+            # log after sync
+            self.offload_prev_layer_log(layer_name=prev_layer_name)
+            self.load_next_layer_log(layer_name=next_layer_name)
             logger.debug("over.\n\n")
 
             return output
