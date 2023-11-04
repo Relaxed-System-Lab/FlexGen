@@ -250,7 +250,7 @@ class FlexGen(
         @torch.no_grad()
         @functools.wraps(old_forward)
         def flexgen_forward(*args, **kwargs):
-            logger.debug(f"layer: {curr_layer_name} calls forward")
+            logger.debug(f"layer: {self.mpl.model_name}.{curr_layer_name} calls forward")
             logger.debug(f"args: {get_info(args)}")
             logger.debug(f"kwargs: {get_info(kwargs)}")
 
