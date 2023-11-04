@@ -46,21 +46,13 @@ class FlexGenAssets:
         self.K = bpl.K
         self.bpl = bpl
 
-        # streams: prev/curr/next layers/batches
+        # streams: prev/next layers/batches, curr layer/batch: current stream
         self.use_streams = torch.cuda.is_available() and policy.overlap
         self.streams = {}
         self.streams["prev_layer"] = torch.cuda.Stream() if self.use_streams else None
         self.streams["next_layer"] = torch.cuda.Stream() if self.use_streams else None
-        self.streams["curr_layer"] = (
-            torch.cuda.current_stream() if self.use_streams else None
-            # torch.cuda.Stream() if self.use_streams else None
-        )
         self.streams["prev_batch"] = torch.cuda.Stream() if self.use_streams else None
         self.streams["next_batch"] = torch.cuda.Stream() if self.use_streams else None
-        self.streams["curr_batch"] = (
-            torch.cuda.current_stream() if self.use_streams else None
-            # torch.cuda.Stream() if self.use_streams else None
-        )
         self.stream_names = list(self.streams.keys())
 
 class NextLayerMixin:
@@ -111,9 +103,8 @@ class CurrLayerMixin:
         logger.debug(f"kwarg_k: {get_info(kwargs_k)}")
 
     def prepare_curr_layer(self, layer_name, inputs):
-        stream = self.streams["curr_layer"]
-        with torch.cuda.stream(stream):
-            self._prepare_curr_layer(layer_name, inputs)
+        self._prepare_curr_layer(layer_name, inputs)
+        torch.cuda.current_stream().synchronize()
 
     def concat_outputs(self):
         return self.bpl.concat_outputs()
@@ -148,9 +139,6 @@ class PrevBatchMixin:
             )
 
     def store_prev_batch(self, k):
-        if self.use_streams:
-            self.streams["curr_layer"].synchronize() # wait for current layer preparation
-
         stream = self.streams["prev_batch"]
         with torch.cuda.stream(stream):
             self._store_prev_batch(k)
@@ -169,12 +157,7 @@ class CurrBatchMixin:
         logger.debug(f'batch: {k}, computed')
 
     def compute_curr_batch(self, k, old_forward):
-        if self.use_streams:
-            self.streams["curr_layer"].synchronize() # wait for current layer preparation
-
-        stream = self.streams["curr_batch"]
-        with torch.cuda.stream(stream):
-            self._compute_curr_batch(k, old_forward)
+        self._compute_curr_batch(k, old_forward)
 
 class NextBatchMixin:
     """
@@ -196,9 +179,6 @@ class NextBatchMixin:
             logger.debug(f'batch: {0}, loaded input: {get_info(self.bpl.get_kth_input(0))}')
 
     def load_next_batch(self, k):
-        if self.use_streams:
-            self.streams["curr_layer"].synchronize() # wait for current layer preparation
-
         stream = self.streams["next_batch"]
         with torch.cuda.stream(stream):
             self._load_next_batch(k)
@@ -209,27 +189,13 @@ class SyncMixin:
     """
     def batch_sync(self):
         if self.use_streams:
-            # torch.cuda.synchronize()
-            # stream_names = ['prev_batch', 'next_batch']
-            # for stream_name in stream_names:
-            #     stream = self.streams[stream_name]
-            #     self.streams['curr_batch'].wait_stream(stream)
-
+            torch.cuda.current_stream().synchronize()
             self.streams["prev_batch"].synchronize()
             self.streams["next_batch"].synchronize()
-            self.streams["curr_batch"].synchronize()
 
     def layer_sync(self):
         if self.use_streams:
             torch.cuda.synchronize()
-            # stream_names = ['prev_layer', 'next_layer']
-            # for stream_name in stream_names:
-            #     stream = self.streams[stream_name]
-            #     self.streams['curr_layer'].wait_stream(stream)
-
-            # self.streams["prev_layer"].synchronize()
-            # self.streams["next_layer"].synchronize()
-            # self.streams["curr_layer"].synchronize()
 
 class FlexGen(
     PrevLayerMixin,CurrLayerMixin,NextLayerMixin,
