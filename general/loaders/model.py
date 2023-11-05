@@ -7,6 +7,7 @@ import json
 from tqdm import tqdm
 import contextlib
 import functools
+import copy 
 
 import torch
 from torch.nn import Module, ModuleList
@@ -449,6 +450,9 @@ class ModelPolicyLoader(MetaModel):
         )
         self.init_all_weights()
 
+        # for offloading
+        # self._layer_backup = {name: None for name in self.layer_names}
+
     def load_module_tensor(self, tensor_name, device):
         tensor = get_module_from_name(self.model, tensor_name)
         if tensor.device == device:
@@ -488,9 +492,15 @@ class ModelPolicyLoader(MetaModel):
 
     def load_layer_weights(self, layer_name, compute_device):
         layer_module = get_module_from_name(self.model, layer_name)
+        
+        # backup
+        # if self._layer_backup[layer_name] is None:
+        #     self._layer_backup[layer_name] = copy.deepcopy(layer_module) # deepcopy a mix-device module
+
+        # load 
         weight_names = [
             layer_name + "." + name
-            for name, _ in named_module_tensors(layer_module, False, True)
+            for name, _ in named_module_tensors(layer_module, False, True) 
         ]
         layer_dat_files = [
             os.path.join(self.offload_folder, self.get_tied_target(w) + ".dat")
@@ -505,6 +515,13 @@ class ModelPolicyLoader(MetaModel):
 
     def offload_layer_weights(self, layer_name):
         layer_module = get_module_from_name(self.model, layer_name)
+        
+        # if layer_name in self._layer_backup: 
+        #     # use layer module backup
+        #     layer_module = self._layer_backup[layer_name]
+        #     self._layer_backup[layer_name] = None 
+        # else: 
+        # offload layer weights according to policy
         weight_names = [
             layer_name + "." + name
             for name, _ in named_module_tensors(layer_module, False, True)

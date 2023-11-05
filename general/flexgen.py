@@ -218,6 +218,13 @@ class FlexGen(
         self.model_reset()
         shutil.rmtree(self.args_offload_dir)
         os.makedirs(self.args_offload_dir, exist_ok=True)
+        # import sys, traceback, threading
+        # thread_names = {t.ident: t.name for t in threading.enumerate()}
+        # for thread_id, frame in sys._current_frames().items():
+        #     print("Thread %s:" % thread_names.get(thread_id, thread_id))
+        #     traceback.print_stack(frame)
+        #     print()
+
 
     def get_flexgen_forward(
         self, old_forward, prev_layer_name, curr_layer_name, next_layer_name
