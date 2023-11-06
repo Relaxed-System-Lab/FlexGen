@@ -5,3 +5,4 @@ test
 logs
 *.log 
 *.nsys-rep
+!a.nsys-rep

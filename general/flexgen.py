@@ -323,6 +323,8 @@ class FlexGen(
                 )
 
             for k in range(self.K):
+                torch.cuda.nvtx.range_push(f'{curr_layer_name}-batch-{k}')
+
                 self.store_prev_batch(k)
                 self.load_next_batch(k)
                 self.compute_curr_batch(k, old_forward)
@@ -334,6 +336,8 @@ class FlexGen(
                     self.compute_curr_batch_log(k, old_forward)
                     self.load_next_batch_log(k)
                     logger.debug("")
+
+                torch.cuda.nvtx.range_pop()
 
             # concatenate outputs of K batches.
             # And for the last layer (e.g. lm_head in OPT),
