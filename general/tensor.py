@@ -76,11 +76,11 @@ class MixTensor:
         g_data, c_data, d_data = cls.split_tensor(tensor, split_dim, percents)
 
         g_data = (
-            g_data.to("cuda:0" if torch.cuda.is_available() else "cpu")
+            g_data.to("cuda:0" if torch.cuda.is_available() else "cpu", non_blocking=True)
             if g_data.numel()
             else None
         )
-        c_data = c_data.to("cpu") if c_data.numel() else None
+        c_data = c_data.to("cpu", non_blocking=True) if c_data.numel() else None
         if d_data.numel():
             d_data = d_data.cpu().numpy()
             np_shape = d_data.shape
@@ -114,15 +114,15 @@ class MixTensor:
         # concatenation
         tensor = []
         if g_data is not None:
-            g_data = g_data.to(compute_device)
+            g_data = g_data.to(compute_device, non_blocking=True)
             tensor.append(g_data)
         if c_data is not None:
-            c_data = c_data.to(compute_device)
+            c_data = c_data.to(compute_device, non_blocking=True)
             tensor.append(c_data)
         if d_data is not None:
             (shape, np_dtype) = d_data
             d_data = np.memmap(self.file_path, shape=shape, dtype=np_dtype, mode="r")
-            d_data = torch.from_numpy(d_data).to(compute_device)
+            d_data = torch.from_numpy(d_data).to(compute_device, non_blocking=True)
             tensor.append(d_data)
 
         tensor = torch.cat(tensor, dim=self.split_dim)
