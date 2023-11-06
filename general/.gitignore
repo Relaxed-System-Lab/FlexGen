@@ -4,3 +4,4 @@ test.ipynb
 test
 logs
 *.log 
+*.nsys-rep

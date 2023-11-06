@@ -349,7 +349,7 @@ class MetaModel:
         set_module_tensor_to_device(self.model, tensor_name, "meta")
 
     def layer_cpu_load(self, layer_name):
-        logger.debug(f"load_layer_weights: {self.model_name}().{layer_name} to cpu")
+        logger.debug(f"load_layer_weights: {self.model_name}.{layer_name} to cpu")
         layer_module = get_module_from_name(self.model, layer_name)
         weight_names = [
             layer_name + "." + name
@@ -367,7 +367,7 @@ class MetaModel:
             self.tensor_cpu_load(w)
 
     def layer_cpu_offload(self, layer_name):
-        logger.debug(f"offload_layer_weights: {self.model_name}().{layer_name} to meta\n\n")
+        logger.debug(f"offload_layer_weights: {self.model_name}.{layer_name} to meta\n\n")
         layer_module = get_module_from_name(self.model, layer_name)
         weight_names = [
             layer_name + "." + name

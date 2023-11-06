@@ -188,12 +188,14 @@ class SyncMixin:
     Synchronizations.
     """
     def batch_sync(self):
+        # return 
         if self.use_streams:
             torch.cuda.current_stream().synchronize()
             self.streams["prev_batch"].synchronize()
             self.streams["next_batch"].synchronize()
 
     def layer_sync(self):
+        # return 
         if self.use_streams:
             torch.cuda.synchronize()
 
@@ -209,12 +211,23 @@ class FlexGen(
         >>> with FlexGen(checkpoint, policy) as model:
         >>>     model.generate(...)
     """
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.start_event = torch.cuda.Event(enable_timing=True)
+        self.stop_event = torch.cuda.Event(enable_timing=True)
 
     def __enter__(self):
         self.model_to_flexgen()
+        self.start_event.record()
         return self.model
 
     def __exit__(self, *exception_infos):
+        # elasped time
+        self.stop_event.record()
+        elasped_time = self.start_event.elapsed_time(self.stop_event)
+        logger.info(f'elasped time: {elasped_time}ms')
+
         self.model_reset()
         shutil.rmtree(self.args_offload_dir)
         os.makedirs(self.args_offload_dir, exist_ok=True)
