@@ -7,7 +7,7 @@ import json
 from tqdm import tqdm
 import contextlib
 import functools
-import copy 
+import copy
 
 import torch
 from torch.nn import Module, ModuleList
@@ -30,7 +30,7 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 # logger.setLevel(logging.INFO)
 
-__all__ = ["ModelPolicyLoader"]
+__all__ = ["ModelPolicyLoader", "MetaModel"]
 
 
 class MetaModel:
@@ -87,7 +87,7 @@ class MetaModel:
         self.device_map = self.get_policy_weight_map()
 
         # test run to get layer names by calling order
-        self.layer_names = self.test_run()
+        self.layer_names = self.test_run(device="cpu")
         assert len(self.layer_names) == self.num_layers
 
     def is_on_disk(self):
@@ -323,7 +323,7 @@ class MetaModel:
                     if name + ".dat" in self.dat_files:
                         return name
 
-    def tensor_cpu_load(self, tensor_name):
+    def tensor_device_load(self, tensor_name, device="cpu"):
         actual_tensor_name = self.get_tied_target(tensor_name)
 
         metadata = self.index[actual_tensor_name]
@@ -343,13 +343,13 @@ class MetaModel:
         load_path = os.path.join(self.offload_folder, actual_tensor_name + ".dat")
         np_memmap = np.memmap(load_path, dtype=dtype, shape=shape, mode="r")
         value = torch.from_numpy(np_memmap)
-        set_module_tensor_to_device(self.model, tensor_name, "cpu", value)
+        set_module_tensor_to_device(self.model, tensor_name, device, value)
 
-    def tensor_cpu_offload(self, tensor_name):
+    def tensor_offload(self, tensor_name):
         set_module_tensor_to_device(self.model, tensor_name, "meta")
 
-    def layer_cpu_load(self, layer_name):
-        logger.debug(f"load_layer_weights: {self.model_name}.{layer_name} to cpu")
+    def layer_device_load(self, layer_name, device):
+        logger.debug(f"load_layer_weights: {self.model_name}.{layer_name} to {device}")
         layer_module = get_module_from_name(self.model, layer_name)
         weight_names = [
             layer_name + "." + name
@@ -364,33 +364,69 @@ class MetaModel:
         ), f"dat file error, {self.dat_files}"
 
         for w in weight_names:
-            self.tensor_cpu_load(w)
+            self.tensor_device_load(w, device=device)
 
-    def layer_cpu_offload(self, layer_name):
-        logger.debug(f"offload_layer_weights: {self.model_name}.{layer_name} to meta\n\n")
+        # buffer names, load to device
+        buffer_names = list(
+            set(
+                [
+                    layer_name + "." + name
+                    for name, _ in named_module_tensors(
+                        layer_module, include_buffers=True, recurse=True
+                    )
+                ]
+            )
+            - set(weight_names)
+        )
+
+        for b in buffer_names:
+            value = get_module_from_name(self.model, b)
+            set_module_tensor_to_device(self.model, b, device, value)
+
+    def layer_offload(self, layer_name):
+        logger.debug(
+            f"offload_layer_weights: {self.model_name}.{layer_name} to meta\n\n"
+        )
         layer_module = get_module_from_name(self.model, layer_name)
         weight_names = [
             layer_name + "." + name
             for name, _ in named_module_tensors(layer_module, False, True)
         ]
         for w in weight_names:
-            self.tensor_cpu_offload(w)
+            self.tensor_offload(w)
 
-    def to_test_forward(self, layer_name, layer_calling_log):
+        # buffers
+        buffer_names = list(
+            set(
+                [
+                    layer_name + "." + name
+                    for name, _ in named_module_tensors(
+                        layer_module, include_buffers=True, recurse=True
+                    )
+                ]
+            )
+            - set(weight_names)
+        )
+
+        for b in buffer_names:
+            value = get_module_from_name(self.model, b)
+            set_module_tensor_to_device(self.model, b, "cpu", value)
+
+    def to_layer_offloading_forward(self, layer_name, device, recorder):
         layer = get_module_from_name(self.model, layer_name)
-        layer._test_old_forward = old_forward = layer.forward
+        layer._layer_offloading_forward = old_forward = layer.forward
 
         @functools.wraps(old_forward)
         def new_forward(*args, **kwargs):
-            self.layer_cpu_load(layer_name)
+            self.layer_device_load(layer_name, device)
 
             # record layer calling order
-            layer_calling_log.append(layer_name)
+            recorder.append(layer_name)
 
             with torch.no_grad():
                 output = old_forward(*args, **kwargs)
 
-            self.layer_cpu_offload(layer_name)
+            self.layer_offload(layer_name)
             return output
 
         layer.forward = new_forward
@@ -399,21 +435,21 @@ class MetaModel:
     def reset_forward(self, layer_name):
         layer = get_module_from_name(self.model, layer_name)
 
-        if hasattr(layer, "_test_old_forward"):
-            layer.forward = layer._test_old_forward
-            delattr(layer, "_test_old_forward")
-            logger.debug(f"{layer_name} from test to old.")
+        if hasattr(layer, "_layer_offloading_forward"):
+            layer.forward = layer._layer_offloading_forward
+            delattr(layer, "_layer_offloading_forward")
+            logger.debug(f"{layer_name} from layer-offloading to old.")
 
     @contextlib.contextmanager
-    def recording(self, layer_calling_log):
-        """recording layer calling order by cpu offloading execution"""
+    def layer_offloading(self, device, recorder):
+        """recording layer calling order by layer-offloading execution"""
         try:
             # unordered layer names
             layer_names = list(self.layers_dict.keys())
 
             # every layer to test forward
             for layer_name in layer_names:
-                self.to_test_forward(layer_name, layer_calling_log)
+                self.to_layer_offloading_forward(layer_name, device, recorder)
 
             yield
 
@@ -422,18 +458,18 @@ class MetaModel:
             for layer_name in layer_names:
                 self.reset_forward(layer_name)
 
-    def test_run(self):
+    def test_run(self, device="cpu"):
         tokenizer = AutoTokenizer.from_pretrained(self.checkpoint)
         if tokenizer.pad_token is None:
             tokenizer.pad_token = tokenizer.eos_token  # eos padding
 
         prompts = ["a"]
-        inputs = tokenizer(prompts, return_tensors="pt", padding=True)
+        inputs = tokenizer(prompts, return_tensors="pt", padding=True).to(device)
 
-        layer_calling_log = []
-        with self.recording(layer_calling_log):
+        recorder = []
+        with self.layer_offloading(device, recorder):
             self.model.generate(inputs.input_ids, max_new_tokens=1)
-        return layer_calling_log
+        return recorder
 
 
 class ModelPolicyLoader(MetaModel):
@@ -490,17 +526,17 @@ class ModelPolicyLoader(MetaModel):
         if tensor.device != device:
             set_module_tensor_to_device(self.model, tensor_name, device, tensor)
 
-    def load_layer_weights(self, layer_name, compute_device):
+    def load_layer(self, layer_name, compute_device):
         layer_module = get_module_from_name(self.model, layer_name)
-        
+
         # backup
         # if self._layer_backup[layer_name] is None:
         #     self._layer_backup[layer_name] = copy.deepcopy(layer_module) # deepcopy a mix-device module
 
-        # load 
+        # weights
         weight_names = [
             layer_name + "." + name
-            for name, _ in named_module_tensors(layer_module, False, True) 
+            for name, _ in named_module_tensors(layer_module, False, True)
         ]
         layer_dat_files = [
             os.path.join(self.offload_folder, self.get_tied_target(w) + ".dat")
@@ -513,14 +549,31 @@ class ModelPolicyLoader(MetaModel):
         for w in weight_names:
             self.load_module_tensor(w, compute_device)
 
-    def offload_layer_weights(self, layer_name):
+        # buffers
+        buffer_names = list(
+            set(
+                [
+                    layer_name + "." + name
+                    for name, _ in named_module_tensors(
+                        layer_module, include_buffers=True, recurse=True
+                    )
+                ]
+            )
+            - set(weight_names)
+        )
+
+        for b in buffer_names:
+            value = get_module_from_name(self.model, b)
+            set_module_tensor_to_device(self.model, b, compute_device, value)
+
+    def offload_layer(self, layer_name):
         layer_module = get_module_from_name(self.model, layer_name)
-        
-        # if layer_name in self._layer_backup: 
+
+        # if layer_name in self._layer_backup:
         #     # use layer module backup
         #     layer_module = self._layer_backup[layer_name]
-        #     self._layer_backup[layer_name] = None 
-        # else: 
+        #     self._layer_backup[layer_name] = None
+        # else:
         # offload layer weights according to policy
         weight_names = [
             layer_name + "." + name
@@ -528,6 +581,23 @@ class ModelPolicyLoader(MetaModel):
         ]
         for w in weight_names:
             self.offload_module_tensor(w)
+
+        # buffers
+        buffer_names = list(
+            set(
+                [
+                    layer_name + "." + name
+                    for name, _ in named_module_tensors(
+                        layer_module, include_buffers=True, recurse=True
+                    )
+                ]
+            )
+            - set(weight_names)
+        )
+
+        for b in buffer_names:
+            value = get_module_from_name(self.model, b)
+            set_module_tensor_to_device(self.model, b, "cpu", value)
 
     def init_all_weights(self):
         # load weights

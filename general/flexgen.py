@@ -64,11 +64,11 @@ class NextLayerMixin:
 
     # TODO: profiling decorator @profile
     def _load_next_layer(self, layer_name):
-        self.mpl.load_layer_weights(layer_name, self.compute_device)
+        self.mpl.load_layer(layer_name, self.compute_device)
 
     def load_next_layer_log(self, layer_name):
         logger.debug(
-            f"load_layer_weights: {self.mpl.model_name}.{layer_name} to {self.compute_device}"
+            f"load_layer: {self.mpl.model_name}.{layer_name} to {self.compute_device}"
         )
 
     def load_next_layer(self, layer_name):
@@ -83,11 +83,11 @@ class PrevLayerMixin:
     """
 
     def _offload_prev_layer(self, layer_name):
-        self.mpl.offload_layer_weights(layer_name)
+        self.mpl.offload_layer(layer_name)
 
     def offload_prev_layer_log(self, layer_name):
         logger.debug(
-            f"offload_layer_weights: {self.mpl.model_name}.{layer_name} by policy."
+            f"offload_layer: {self.mpl.model_name}.{layer_name} by policy."
         )
 
     def offload_prev_layer(self, layer_name):
@@ -104,7 +104,7 @@ class CurrLayerMixin:
     """
 
     def _prepare_curr_layer(self, layer_name, inputs):
-        self.mpl.load_layer_weights(layer_name, self.compute_device)
+        self.mpl.load_layer(layer_name, self.compute_device)
         self.bpl.layer_init(inputs=inputs, layer_name=layer_name)
 
     def prepare_curr_layer_log(self, layer_name, inputs):
@@ -262,7 +262,9 @@ class FlexGen(
         elasped_time = self.start_event.elapsed_time(self.stop_event)
         logger.info(f"elasped time: {elasped_time}ms")
 
-        self.model_reset()
+        torch.cuda.empty_cache()
+
+        # self.model_reset()
         shutil.rmtree(self.args_offload_dir)
         os.makedirs(self.args_offload_dir, exist_ok=True)
         # import sys, traceback, threading
@@ -311,10 +313,10 @@ class FlexGen(
                 logger.debug(f"kwargs: {get_info(kwargs)}")
 
             # steps of FlexGen Alg.1
-            self.offload_prev_layer(layer_name=prev_layer_name)
-            self.load_next_layer(layer_name=next_layer_name)
-            self.prepare_curr_layer(layer_name=curr_layer_name, inputs=(args, kwargs))
-            self.curr_sync()
+            self.offload_prev_layer(layer_name=prev_layer_name) #
+            self.load_next_layer(layer_name=next_layer_name) #
+            self.prepare_curr_layer(layer_name=curr_layer_name, inputs=(args, kwargs)) # helper
+            self.curr_sync() # current stream sync
 
             # log after sync
             if self.verbose:
@@ -325,10 +327,10 @@ class FlexGen(
             for k in range(self.K):
                 torch.cuda.nvtx.range_push(f'{curr_layer_name}-batch-{k}')
 
-                self.store_prev_batch(k)
-                self.load_next_batch(k)
-                self.compute_curr_batch(k, old_forward)
-                self.batch_sync()
+                self.store_prev_batch(k) #
+                self.load_next_batch(k) #
+                self.compute_curr_batch(k, old_forward) # 
+                self.batch_sync() # 
 
                 # log after sync
                 if self.verbose:
@@ -346,7 +348,7 @@ class FlexGen(
             output = self.concat_outputs()
             if curr_layer_name == self.layer_names[-1]:
                 output = to_compute_device(output)
-            self.layer_sync()
+            self.layer_sync() # 
 
             # log after sync
             logger.debug(f"outputs after concat: {get_info(output)}")

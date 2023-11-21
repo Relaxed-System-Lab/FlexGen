@@ -38,7 +38,7 @@ def get_info(obj):
     elif isinstance(obj, Mapping):
         return type(obj)({k: get_info(v) for k, v in obj.items()})
     elif isinstance(obj, (torch.Tensor)):
-        return f"{obj.__class__.__name__}(shape={tuple(obj.size())}, dtype={obj.dtype})"
+        return f"{obj.__class__.__name__}(shape={tuple(obj.size())}, dtype={obj.dtype}, device={obj.device})"
     elif isinstance(obj, (MixTensor)):
         return f"{obj.__class__.__name__}(shape={tuple(obj.size())}, dtype={obj.dtype}, percents={obj.percents})"
     elif isinstance(obj, (BatchListTensor)):

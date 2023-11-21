@@ -19,12 +19,13 @@ parser.add_argument(
     "facebook/opt-1.3b "
     "facebook/opt-13b "
     "Salesforce/codegen-350M-mono "
-    "bigscience/bloom-560m ",
+    "bigscience/bloom-560m "
+    "NousResearch/Llama-2-7b-chat-hf"
 )
 parser.add_argument(
     "--compute_device",
     type=str,
-    default="cuda:0",
+    default="cuda:0", # multi GPUs
     metavar="S",
     help="compute device (cpu or cuda)",
 )
@@ -47,17 +48,17 @@ policy = Policy(
     cache_gpu_percent=0.1,
     cache_cpu_percent=0.3,
     act_gpu_percent=0,
-    act_cpu_percent=1,
+    act_cpu_percent=0.5,
     overlap=overlap,
     pin_weight=True,
-)
+) # TODO: policy solver
 
 logger.info(args)
 logger.info(policy)
 
 # flexgen test
 with FlexGen(
-    checkpoint=checkpoint, policy=policy, compute_device=compute_device, verbose=False
+    checkpoint=checkpoint, policy=policy, compute_device=compute_device, verbose=True
 ) as model:
     num_prompts = policy.gpu_batch_size * policy.num_gpu_batches
     test_hf_gen(checkpoint, model, num_prompts, compute_device)
