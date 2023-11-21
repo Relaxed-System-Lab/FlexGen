@@ -87,7 +87,7 @@ class MetaModel:
         self.device_map = self.get_policy_weight_map()
 
         # test run to get layer names by calling order
-        self.layer_names = self.test_run(device="cpu")
+        self.layer_names = self.test_run(device="cuda:0")
         assert len(self.layer_names) == self.num_layers
 
     def is_on_disk(self):

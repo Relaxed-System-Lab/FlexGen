@@ -21,6 +21,7 @@ parser.add_argument(
     "Salesforce/codegen-350M-mono "
     "bigscience/bloom-560m "
     "NousResearch/Llama-2-7b-chat-hf"
+    'huggyllama/llama-7b'
 )
 parser.add_argument(
     "--compute_device",
@@ -41,7 +42,7 @@ checkpoint = args.checkpoint
 compute_device = args.compute_device
 overlap = not args.normal_loop
 policy = Policy(
-    gpu_batch_size=32,  # batch load, compute time both are proportional to gbs?
+    gpu_batch_size=2,  # batch load, compute time both are proportional to gbs?
     num_gpu_batches=4,
     weights_gpu_percent=0.1,
     weights_cpu_percent=0.3,
