@@ -357,16 +357,22 @@ class MetaModel:
     def layer_device_load(self, layer_name, device):
         logger.debug(f"load_layer: {self.model_name}.{layer_name} to {device}")
         layer_module = get_module_from_name(self.model, layer_name)
-
-        # backup
-        backup = copy.deepcopy(layer_module)
-        self._backups[layer_name] = backup
-
-        # weights
         weight_names = [
             layer_name + "." + name
             for name, _ in named_module_tensors(layer_module, False, True)
         ]
+        all_names = [
+            layer_name + "." + name
+            for name, _ in named_module_tensors(layer_module, True, True)
+        ]
+        buffer_names = list(set(all_names) - set(weight_names))
+
+        # backup
+        if self._backups[layer_name] is None:
+            backup = copy.deepcopy(layer_module)
+            self._backups[layer_name] = backup
+
+        # weights
         layer_dat_files = [
             os.path.join(self.offload_folder, self.get_tied_target(w) + ".dat")
             for w in weight_names
@@ -378,19 +384,7 @@ class MetaModel:
         for w in weight_names:
             self.tensor_device_load(w, device=device)
 
-        # buffer names, load to device
-        buffer_names = list(
-            set(
-                [
-                    layer_name + "." + name
-                    for name, _ in named_module_tensors(
-                        layer_module, include_buffers=True, recurse=True
-                    )
-                ]
-            )
-            - set(weight_names)
-        )
-
+        # buffers
         for b in buffer_names:
             value = get_module_from_name(self.model, b)
             set_module_tensor_to_device(self.model, b, device, value)
@@ -541,8 +535,12 @@ class ModelPolicyLoader(MetaModel):
         layer_module = get_module_from_name(self.model, layer_name)
 
         # backup
-        backup = copy.deepcopy(layer_module)
-        self._backups[layer_name] = backup
+        if self._backups[layer_name] is None:
+            backup = copy.deepcopy(layer_module)
+            self._backups[layer_name] = backup
+        
+        # logger.info(f'{layer_name}: {set(p.device for _, p in named_module_tensors(self._backups[layer_name], False, True))}')
+        # input()
 
         weight_names = [
             layer_name + "." + name
@@ -587,12 +585,13 @@ class ModelPolicyLoader(MetaModel):
         # weights
         if self._backups[layer_name] is not None:
             set_module_from_name(self.model, layer_name, self._backups[layer_name])
+            # logger.info(f'{layer_name}: {set(p.device for _, p in named_module_tensors(self._backups[layer_name], False, True))}')
             self._backups[layer_name] = None
             layer_module.to('meta')
+            # input()
         else:
             for w in weight_names:
                 self.offload_module_tensor(w)
-
 
         # buffers
         for b in buffer_names:
