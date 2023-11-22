@@ -1,4 +1,4 @@
-# model: 1) load/offload layer weights, 2) init weights by policy
+# model: 1) load/offload layer weights/buffers, 2) init weights by policy
 
 import os
 import shutil
@@ -42,8 +42,8 @@ class MetaModel:
             b) weight device map (by FlexGen policy)
             c) tied parameters
         3) weights offloading
-            a) load layer weights
-            b) offload layer weights
+            a) load layer weights/buffers
+            b) offload layer weights/buffers
 
     args:
         checkpoint:
@@ -349,7 +349,7 @@ class MetaModel:
         set_module_tensor_to_device(self.model, tensor_name, "meta")
 
     def layer_device_load(self, layer_name, device):
-        logger.debug(f"load_layer_weights: {self.model_name}.{layer_name} to {device}")
+        logger.debug(f"load_layer: {self.model_name}.{layer_name} to {device}")
         layer_module = get_module_from_name(self.model, layer_name)
         weight_names = [
             layer_name + "." + name
@@ -385,7 +385,7 @@ class MetaModel:
 
     def layer_offload(self, layer_name):
         logger.debug(
-            f"offload_layer_weights: {self.model_name}.{layer_name} to meta\n\n"
+            f"offload_layer: {self.model_name}.{layer_name} to meta\n\n"
         )
         layer_module = get_module_from_name(self.model, layer_name)
         weight_names = [

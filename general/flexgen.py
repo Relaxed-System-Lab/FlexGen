@@ -59,7 +59,7 @@ class FlexGenAssets:
 
 class NextLayerMixin:
     """
-    load next layers' weights.
+    load next layers' weights/buffers.
     """
 
     # TODO: profiling decorator @profile
@@ -79,7 +79,7 @@ class NextLayerMixin:
 
 class PrevLayerMixin:
     """
-    offload prev layer's weights.
+    offload prev layer's weights/buffers.
     """
 
     def _offload_prev_layer(self, layer_name):
@@ -98,7 +98,7 @@ class PrevLayerMixin:
 
 class CurrLayerMixin:
     """
-    1. load current weights (it should be already loaded except for the very 1st layer)
+    1. load current weights/buffers (it should be already loaded except for the very 1st layer)
     2. prepare layer input args, kwargs (but do not load them)
     3. concat mini-outputs after computing all mini-batches
     """
@@ -281,8 +281,8 @@ class FlexGen(
         override the j-th layer's forward function to FlexGen version.
 
         'pre' forward:
-            1) load current layer's weights (to compute device)
-            2) load next layer's weights (to compute device)
+            1) load current layer's weights/buffers (to compute device)
+            2) load next layer's weights/buffers (to compute device)
         'call' forward:
             1) split the input databatch to K minibatches
                 a) input databatch: *args and **kwargs
@@ -349,6 +349,7 @@ class FlexGen(
             if curr_layer_name == self.layer_names[-1]:
                 output = to_compute_device(output)
             self.layer_sync() # 
+            torch.cuda.empty_cache() # 
 
             # log after sync
             logger.debug(f"outputs after concat: {get_info(output)}")
