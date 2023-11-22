@@ -60,9 +60,11 @@ class MetaModel:
         checkpoint: str,
         policy: Policy,
         weights_offload_dir: str = "weights_offload_dir",
+        dtype = torch.float16,
     ):
         # download weights
         self.checkpoint = checkpoint
+        self.dtype = dtype
         self.policy = policy
         self.offload_dir = weights_offload_dir
         self.offload_folder = os.path.join(
@@ -116,6 +118,7 @@ class MetaModel:
                 logger.info("downloading from hugging face...")
                 AutoModelForCausalLM.from_pretrained(
                     self.checkpoint,
+                    torch_dtype=self.dtype,
                     device_map={"": "disk"},
                     offload_folder=self.offload_folder,
                     offload_state_dict=True,
@@ -136,9 +139,9 @@ class MetaModel:
         )
 
     def get_empty_model(self):
-        config = AutoConfig.from_pretrained(self.checkpoint)
+        config = AutoConfig.from_pretrained(self.checkpoint, torch_dtype=self.dtype)
         with init_empty_weights():
-            model = AutoModelForCausalLM.from_config(config)
+            model = AutoModelForCausalLM.from_config(config, torch_dtype=self.dtype)
         model.tie_weights()
         model.eval()
         remove_hook_from_module(model, recurse=True)
@@ -427,6 +430,8 @@ class MetaModel:
                 output = old_forward(*args, **kwargs)
 
             self.layer_offload(layer_name)
+            # torch.cuda.empty_cache() 
+
             return output
 
         layer.forward = new_forward
@@ -478,11 +483,13 @@ class ModelPolicyLoader(MetaModel):
         checkpoint: str,
         policy: Policy,
         weights_offload_dir: str = "weights_offload_dir",
+        dtype = torch.float16,
     ):
         super().__init__(
             checkpoint=checkpoint,
             policy=policy,
             weights_offload_dir=weights_offload_dir,
+            dtype=dtype
         )
         self.init_all_weights()
 

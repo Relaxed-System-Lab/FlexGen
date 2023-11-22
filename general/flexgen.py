@@ -349,7 +349,7 @@ class FlexGen(
             if curr_layer_name == self.layer_names[-1]:
                 output = to_compute_device(output)
             self.layer_sync() # 
-            torch.cuda.empty_cache() # 
+            # torch.cuda.empty_cache() 
 
             # log after sync
             logger.debug(f"outputs after concat: {get_info(output)}")
