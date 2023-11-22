@@ -75,11 +75,16 @@ class MixTensor:
 
         g_data, c_data, d_data = cls.split_tensor(tensor, split_dim, percents)
 
+        # try:
         g_data = (
             g_data.to("cuda:0" if torch.cuda.is_available() else "cpu", non_blocking=True)
             if g_data.numel()
             else None
         )
+        # except:
+        #     print('tensor', tensor, '\n\n\n')
+        #     print('g_data, c_data, d_data', g_data, c_data, d_data, '\n\n\n')
+
         c_data = c_data.to("cpu", non_blocking=True) if c_data.numel() else None
         if d_data.numel():
             d_data = d_data.cpu().numpy()

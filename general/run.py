@@ -105,7 +105,7 @@ logger.info(policy)
 
 # flexgen test
 with FlexGen(
-    checkpoint=checkpoint, policy=policy, compute_device=compute_device, verbose=False
+    checkpoint=checkpoint, policy=policy, compute_device=compute_device, verbose=True
 ) as model:
     num_prompts = policy.gpu_batch_size * policy.num_gpu_batches
     test_hf_gen(

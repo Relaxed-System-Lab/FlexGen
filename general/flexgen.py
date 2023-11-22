@@ -211,18 +211,18 @@ class SyncMixin:
     """
 
     def batch_sync(self):
-        return
+        # return
         if self.use_streams:
             torch.cuda.current_stream().synchronize()
             self.streams["prev_batch"].synchronize()
             self.streams["next_batch"].synchronize()
 
     def curr_sync(self):
-        return
+        # return
         torch.cuda.current_stream().synchronize()
 
     def layer_sync(self):
-        return
+        # return
         if self.use_streams:
             torch.cuda.synchronize()
 
