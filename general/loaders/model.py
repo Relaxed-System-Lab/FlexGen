@@ -60,7 +60,7 @@ class MetaModel:
         checkpoint: str,
         policy: Policy,
         weights_offload_dir: str = "weights_offload_dir",
-        dtype = torch.float16,
+        dtype=torch.float16,
     ):
         # download weights
         self.checkpoint = checkpoint
@@ -87,6 +87,9 @@ class MetaModel:
         self.layers_dict = self.get_layer_module_dict(self.model)
         self.num_layers = len(self.layers_dict.keys())
         self.device_map = self.get_policy_weight_map()
+
+        # offloading
+        self._backups = {name: None for name in self.layers_dict}
 
         # test run to get layer names by calling order
         self.layer_names = self.test_run(device="cuda:0")
@@ -357,6 +360,7 @@ class MetaModel:
 
         # backup
         backup = copy.deepcopy(layer_module)
+        self._backups[layer_name] = backup
 
         # weights
         weight_names = [
@@ -391,39 +395,29 @@ class MetaModel:
             value = get_module_from_name(self.model, b)
             set_module_tensor_to_device(self.model, b, device, value)
 
-        # set backup
-        layer_module._backup = backup
-
     def layer_offload(self, layer_name):
-        logger.debug(
-            f"offload_layer: {self.model_name}.{layer_name} to meta\n\n"
-        )
+        logger.debug(f"offload_layer: {self.model_name}.{layer_name} to meta\n\n")
         layer_module = get_module_from_name(self.model, layer_name)
         weight_names = [
             layer_name + "." + name
             for name, _ in named_module_tensors(layer_module, False, True)
         ]
+        all_names = [
+            layer_name + "." + name
+            for name, _ in named_module_tensors(layer_module, True, True)
+        ]
+        buffer_names = list(set(all_names) - set(weight_names))
 
         # weights
-        if hasattr(layer_module, '_backup'):
-            set_module_from_name(self.model, layer_name, layer_module._backup)
+        if self._backups[layer_name] is not None:
+            set_module_from_name(self.model, layer_name, self._backups[layer_name])
+            self._backups[layer_name] = None
+            layer_module.to('meta')
         else:
             for w in weight_names:
                 self.tensor_offload(w)
 
         # buffers
-        buffer_names = list(
-            set(
-                [
-                    layer_name + "." + name
-                    for name, _ in named_module_tensors(
-                        layer_module, include_buffers=True, recurse=True
-                    )
-                ]
-            )
-            - set(weight_names)
-        )
-
         for b in buffer_names:
             value = get_module_from_name(self.model, b)
             set_module_tensor_to_device(self.model, b, "cpu", value)
@@ -443,7 +437,7 @@ class MetaModel:
                 output = old_forward(*args, **kwargs)
 
             self.layer_offload(layer_name)
-            # torch.cuda.empty_cache() 
+            # torch.cuda.empty_cache()
 
             return output
 
@@ -496,13 +490,13 @@ class ModelPolicyLoader(MetaModel):
         checkpoint: str,
         policy: Policy,
         weights_offload_dir: str = "weights_offload_dir",
-        dtype = torch.float16,
+        dtype=torch.float16,
     ):
         super().__init__(
             checkpoint=checkpoint,
             policy=policy,
             weights_offload_dir=weights_offload_dir,
-            dtype=dtype
+            dtype=dtype,
         )
         self.init_all_weights()
 
@@ -548,12 +542,19 @@ class ModelPolicyLoader(MetaModel):
 
         # backup
         backup = copy.deepcopy(layer_module)
+        self._backups[layer_name] = backup
 
-        # weights
         weight_names = [
             layer_name + "." + name
             for name, _ in named_module_tensors(layer_module, False, True)
         ]
+        all_names = [
+            layer_name + "." + name
+            for name, _ in named_module_tensors(layer_module, True, True)
+        ]
+        buffer_names = list(set(all_names) - set(weight_names))
+
+        # weights
         layer_dat_files = [
             os.path.join(self.offload_folder, self.get_tied_target(w) + ".dat")
             for w in weight_names
@@ -566,56 +567,34 @@ class ModelPolicyLoader(MetaModel):
             self.load_module_tensor(w, compute_device)
 
         # buffers
-        buffer_names = list(
-            set(
-                [
-                    layer_name + "." + name
-                    for name, _ in named_module_tensors(
-                        layer_module, include_buffers=True, recurse=True
-                    )
-                ]
-            )
-            - set(weight_names)
-        )
-
         for b in buffer_names:
             value = get_module_from_name(self.model, b)
             set_module_tensor_to_device(self.model, b, compute_device, value)
 
-        # set backup
-        layer_module._backup = backup
 
     def offload_layer(self, layer_name):
         layer_module = get_module_from_name(self.model, layer_name)
         weight_names = [
             layer_name + "." + name
             for name, _ in named_module_tensors(layer_module, False, True)
-        ] # problematic
+        ]  
+        all_names = [
+            layer_name + "." + name
+            for name, _ in named_module_tensors(layer_module, True, True)
+        ]
+        buffer_names = list(set(all_names) - set(weight_names))
 
-        if hasattr(layer_module, '_backup'):
-            backup = layer_module._backup
-            set_module_from_name(self.model, layer_name, backup)
+        # weights
+        if self._backups[layer_name] is not None:
+            set_module_from_name(self.model, layer_name, self._backups[layer_name])
+            self._backups[layer_name] = None
+            layer_module.to('meta')
         else:
-            # offload layer weights according to policy
             for w in weight_names:
                 self.offload_module_tensor(w)
 
-        import gc; gc.collect()
-        torch.cuda.empty_cache()
 
         # buffers
-        buffer_names = list(
-            set(
-                [
-                    layer_name + "." + name
-                    for name, _ in named_module_tensors(
-                        layer_module, include_buffers=True, recurse=True
-                    )
-                ]
-            )
-            - set(weight_names)
-        )
-
         for b in buffer_names:
             value = get_module_from_name(self.model, b)
             set_module_tensor_to_device(self.model, b, "cpu", value)
