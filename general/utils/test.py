@@ -4,7 +4,13 @@ from utils import logging
 
 
 def test_hf_gen(
-    checkpoint, model, num_prompts, compute_device, gen_len=10, prompts=None
+    checkpoint,
+    model,
+    num_prompts,
+    compute_device,
+    prompt_len=32,
+    gen_len=10,
+    prompts=None,
 ):
     # test .generate() for huggingface CausalLM models.
 
@@ -27,7 +33,13 @@ def test_hf_gen(
         tokenizer.pad_token = tokenizer.eos_token  # eos padding
 
     # inputs
-    inputs = tokenizer(prompts, return_tensors="pt", padding=True).to(compute_device)
+    inputs = tokenizer(
+        prompts,
+        padding="max_length",
+        max_length=prompt_len,
+        return_tensors="pt",
+        # padding=True,
+    ).to(compute_device)
 
     # generate
     generate_ids = model.generate(
