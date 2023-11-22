@@ -211,17 +211,18 @@ class SyncMixin:
     """
 
     def batch_sync(self):
-        # return
+        return
         if self.use_streams:
             torch.cuda.current_stream().synchronize()
             self.streams["prev_batch"].synchronize()
             self.streams["next_batch"].synchronize()
 
     def curr_sync(self):
+        return
         torch.cuda.current_stream().synchronize()
 
     def layer_sync(self):
-        # return
+        return
         if self.use_streams:
             torch.cuda.synchronize()
 
@@ -349,7 +350,7 @@ class FlexGen(
             if curr_layer_name == self.layer_names[-1]:
                 output = to_compute_device(output)
             self.layer_sync() # 
-            # torch.cuda.empty_cache() 
+            torch.cuda.empty_cache() 
 
             # log after sync
             logger.debug(f"outputs after concat: {get_info(output)}")

@@ -14,3 +14,6 @@ python3 run.py --checkpoint huggyllama/llama-7b --compute-device cuda:0
 
 
 python3 run.py --checkpoint facebook/opt-13b --compute-device cuda:0 --normal-loop --prompt-len 128 --gen-len 32 --gpu-batch-size 16 --num-gpu-batches 10 --percent 20 30 0 25 100 0 
+
+# watch GPU memory usage
+watch -n 0.1 nvidia-smi

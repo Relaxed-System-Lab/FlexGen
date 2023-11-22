@@ -9,6 +9,7 @@ logger.setLevel(logging.DEBUG)
 
 __all__ = [
     "get_module_from_name",
+    "set_module_from_name",
     "get_info",
     "to_compute_device",
     "to_mixed_device",
@@ -25,11 +26,26 @@ def get_module_from_name(lm_model, name):
         if split == "":
             continue
 
-        new_module = getattr(module, split)
-        if new_module is None:
+        sub_module = getattr(module, split)
+        if sub_module is None:
             raise ValueError(f"{module} has no attribute {split}.")
-        module = new_module
+        module = sub_module
     return module
+
+
+def set_module_from_name(lm_model, name, value):
+    splits = name.split(".")
+    module = lm_model
+    for split in splits[:-1]:
+        if split == "":
+            continue
+
+        sub_module = getattr(module, split)
+        if sub_module is None:
+            raise ValueError(f"{module} has no attribute {split}.")
+        module = sub_module
+        
+    setattr(module, splits[-1], value)
 
 
 def get_info(obj):

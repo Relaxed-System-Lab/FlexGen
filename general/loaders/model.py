@@ -23,7 +23,7 @@ from accelerate.utils import (
 )
 
 from utils import logging, Policy
-from utils import get_module_from_name
+from utils import get_module_from_name, set_module_from_name
 
 
 logger = logging.getLogger(__name__)
@@ -354,6 +354,11 @@ class MetaModel:
     def layer_device_load(self, layer_name, device):
         logger.debug(f"load_layer: {self.model_name}.{layer_name} to {device}")
         layer_module = get_module_from_name(self.model, layer_name)
+
+        # backup
+        backup = copy.deepcopy(layer_module)
+
+        # weights
         weight_names = [
             layer_name + "." + name
             for name, _ in named_module_tensors(layer_module, False, True)
@@ -386,6 +391,9 @@ class MetaModel:
             value = get_module_from_name(self.model, b)
             set_module_tensor_to_device(self.model, b, device, value)
 
+        # set backup
+        layer_module._backup = backup
+
     def layer_offload(self, layer_name):
         logger.debug(
             f"offload_layer: {self.model_name}.{layer_name} to meta\n\n"
@@ -395,8 +403,13 @@ class MetaModel:
             layer_name + "." + name
             for name, _ in named_module_tensors(layer_module, False, True)
         ]
-        for w in weight_names:
-            self.tensor_offload(w)
+
+        # weights
+        if hasattr(layer_module, '_backup'):
+            set_module_from_name(self.model, layer_name, layer_module._backup)
+        else:
+            for w in weight_names:
+                self.tensor_offload(w)
 
         # buffers
         buffer_names = list(
@@ -435,7 +448,7 @@ class MetaModel:
             return output
 
         layer.forward = new_forward
-        logger.debug(f"{layer_name} to test forward")
+        logger.debug(f"{layer_name} to layer-offloading forward")
 
     def reset_forward(self, layer_name):
         layer = get_module_from_name(self.model, layer_name)
@@ -463,7 +476,7 @@ class MetaModel:
             for layer_name in layer_names:
                 self.reset_forward(layer_name)
 
-    def test_run(self, device="cpu"):
+    def test_run(self, device="cuda:0"):
         tokenizer = AutoTokenizer.from_pretrained(self.checkpoint)
         if tokenizer.pad_token is None:
             tokenizer.pad_token = tokenizer.eos_token  # eos padding
@@ -492,9 +505,6 @@ class ModelPolicyLoader(MetaModel):
             dtype=dtype
         )
         self.init_all_weights()
-
-        # for offloading
-        # self._layer_backup = {name: None for name in self.layer_names}
 
     def load_module_tensor(self, tensor_name, device):
         tensor = get_module_from_name(self.model, tensor_name)
@@ -537,8 +547,7 @@ class ModelPolicyLoader(MetaModel):
         layer_module = get_module_from_name(self.model, layer_name)
 
         # backup
-        # if self._layer_backup[layer_name] is None:
-        #     self._layer_backup[layer_name] = copy.deepcopy(layer_module) # deepcopy a mix-device module
+        backup = copy.deepcopy(layer_module)
 
         # weights
         weight_names = [
@@ -573,21 +582,26 @@ class ModelPolicyLoader(MetaModel):
             value = get_module_from_name(self.model, b)
             set_module_tensor_to_device(self.model, b, compute_device, value)
 
+        # set backup
+        layer_module._backup = backup
+
     def offload_layer(self, layer_name):
         layer_module = get_module_from_name(self.model, layer_name)
-
-        # if layer_name in self._layer_backup:
-        #     # use layer module backup
-        #     layer_module = self._layer_backup[layer_name]
-        #     self._layer_backup[layer_name] = None
-        # else:
-        # offload layer weights according to policy
         weight_names = [
             layer_name + "." + name
             for name, _ in named_module_tensors(layer_module, False, True)
-        ]
-        for w in weight_names:
-            self.offload_module_tensor(w)
+        ] # problematic
+
+        if hasattr(layer_module, '_backup'):
+            backup = layer_module._backup
+            set_module_from_name(self.model, layer_name, backup)
+        else:
+            # offload layer weights according to policy
+            for w in weight_names:
+                self.offload_module_tensor(w)
+
+        import gc; gc.collect()
+        torch.cuda.empty_cache()
 
         # buffers
         buffer_names = list(
