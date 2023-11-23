@@ -91,9 +91,18 @@ class ModelBasics:
         # offloading
         self.layer_state_dict_backups = {name: None for name in self.layers_dict}
 
+        self.layer_names = self.get_ordered_layer_names()
+
+    def get_ordered_layer_names(self):
         # test run to get layer names by calling order
-        self.layer_names = self.test_run(device="cuda:0")
-        assert len(self.layer_names) == self.num_layers
+        layer_name_file = os.path.join(self.offload_folder, 'layer_names.pt')
+        if not os.path.exists(layer_name_file):
+            layer_names = self.test_run(device="cuda:0")
+            torch.save(layer_names, layer_name_file)
+            assert len(layer_names) == self.num_layers
+            return layer_names 
+        else:
+            return torch.load(layer_name_file)
 
     def is_on_disk(self):
         # check if the model has a complete copy on disk.

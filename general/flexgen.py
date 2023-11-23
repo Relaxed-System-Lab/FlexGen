@@ -270,7 +270,7 @@ class FlexGen(
     def __enter__(self):
         self.model_to_flexgen()
         self.start_event.record()
-        # torch.cuda.memory._record_memory_history()
+        torch.cuda.memory._record_memory_history()
         return self.model
 
     def __exit__(self, *exception_infos):
@@ -280,7 +280,7 @@ class FlexGen(
         elasped_time = self.start_event.elapsed_time(self.stop_event)
         logger.info(f"elasped time: {elasped_time}ms")
 
-        # torch.cuda.memory._dump_snapshot("mem_snapshot.pickle")
+        torch.cuda.memory._dump_snapshot("mem_snapshot.pickle")
 
         # self.model_reset()
         torch.cuda.empty_cache()

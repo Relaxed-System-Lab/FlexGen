@@ -6,3 +6,6 @@ logs
 *.log 
 *.nsys-rep
 !a.nsys-rep
+*.pickle
+*.ipynb
+*.pt

@@ -47,7 +47,7 @@ class BlockPolicyLoader:
         self.input_batches[k] = to_compute_device(self.input_batches[k])
 
     def free_kth_input(self, k):
-        self.input_batches[k] = None
+        self.input_batches[k] = None 
 
     def offload_kth_input(self, k):
         self.input_batches[k] = to_mixed_device(
