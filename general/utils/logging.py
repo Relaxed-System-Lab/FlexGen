@@ -10,7 +10,7 @@ time_info = datetime.now().strftime("%Y-%m-%d,%H:%M:%S,%f")
 
 logging.basicConfig(
     style="{",
-    format="{asctime} [{filename}:{lineno} in {funcName}] {levelname} \n {message}",
+    format="{asctime} [{filename}:{lineno} in {funcName}] {levelname} | {message}",
     handlers=[
         logging.FileHandler(f"{log_dir}/{time_info}.log", "w"),
         logging.StreamHandler(),

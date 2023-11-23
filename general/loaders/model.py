@@ -284,7 +284,7 @@ class ModelBasics:
                     if "cuda" in v["assigned_device"] and "shape" in v
                 ]
             )
-            * 2
+            * (torch.finfo(self.dtype).bits / 8)
             / (2**30)
         )
         mem_c = (
@@ -295,7 +295,7 @@ class ModelBasics:
                     if v["assigned_device"] == "cpu" and "shape" in v
                 ]
             )
-            * 2
+            * (torch.finfo(self.dtype).bits / 8)
             / (2**30)
         )
         mem_d = (
@@ -306,7 +306,7 @@ class ModelBasics:
                     if v["assigned_device"] == "disk" and "shape" in v
                 ]
             )
-            * 2
+            * (torch.finfo(self.dtype).bits / 8)
             / (2**30)
         )
         mem = mem_d + mem_c + mem_g

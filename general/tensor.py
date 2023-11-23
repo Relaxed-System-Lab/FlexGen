@@ -66,7 +66,9 @@ class MixTensor:
     @classmethod
     def from_tensor(
         cls, tensor: torch.Tensor, percents: Mapping[str, float], file_path: str
-    ):
+    ):  
+        # This function won't increase GPU memory usage.
+
         # tensor from compute device to g/c/d mixed device
         split_dim = cls.get_split_dim(tensor)
         device = tensor.device  # compute device
@@ -77,16 +79,11 @@ class MixTensor:
 
         g_data, c_data, d_data = cls.split_tensor(tensor, split_dim, percents)
 
-        # try:
         g_data = (
             g_data.to("cuda:0" if torch.cuda.is_available() else "cpu", non_blocking=True)
             if g_data.numel()
             else None
         )
-        # except:
-        #     print('tensor', tensor, '\n\n\n')
-        #     print('g_data, c_data, d_data', g_data, c_data, d_data, '\n\n\n')
-
         c_data = c_data.to("cpu", non_blocking=True) if c_data.numel() else None
         if d_data.numel():
             d_data = d_data.cpu().numpy()
@@ -113,6 +110,9 @@ class MixTensor:
 
     def to_tensor(self):
         # move g/c/d mixed data to compute device
+        if self.mix_data is None:
+            raise RuntimeError('mix data is None.')
+        
         g_data, c_data, d_data = self.mix_data
         self.mix_data = None
 

@@ -181,6 +181,7 @@ class CurrBatchMixin:
         args_k, kwargs_k = self.bpl.get_kth_input(k)
         output = old_forward(*args_k, **kwargs_k)
         self.bpl.set_kth_output(k, output)
+        self.bpl.free_kth_input(k)
 
     def compute_curr_batch_log(self, k, old_forward):
         logger.debug(f"computed batch {k}")
@@ -269,20 +270,22 @@ class FlexGen(
     def __enter__(self):
         self.model_to_flexgen()
         self.start_event.record()
+        # torch.cuda.memory._record_memory_history()
         return self.model
 
     def __exit__(self, *exception_infos):
         # elasped time
-        torch.cuda.synchronize()
         self.stop_event.record()
+        torch.cuda.synchronize()
         elasped_time = self.start_event.elapsed_time(self.stop_event)
         logger.info(f"elasped time: {elasped_time}ms")
 
-        torch.cuda.empty_cache()
+        # torch.cuda.memory._dump_snapshot("mem_snapshot.pickle")
 
         # self.model_reset()
+        torch.cuda.empty_cache()
         shutil.rmtree(self.args_offload_dir)
-        os.makedirs(self.args_offload_dir, exist_ok=True)
+        
         # import sys, traceback, threading
         # thread_names = {t.ident: t.name for t in threading.enumerate()}
         # for thread_id, frame in sys._current_frames().items():
@@ -343,10 +346,10 @@ class FlexGen(
             for k in range(self.K):
                 torch.cuda.nvtx.range_push(f'{curr_layer_name}-batch-{k}')
 
-                self.store_prev_batch(k) #
-                self.load_next_batch(k) #
-                self.compute_curr_batch(k, old_forward) # 
-                self.batch_sync() # 
+                self.store_prev_batch(k) 
+                self.load_next_batch(k) 
+                self.compute_curr_batch(k, old_forward) 
+                self.batch_sync() 
 
                 # log after sync
                 if self.verbose:
