@@ -36,6 +36,11 @@ parser.add_argument(
     help="no overlap",
 )
 parser.add_argument(
+    "--verbose",
+    action="store_true",
+    help="verbose debug",
+)
+parser.add_argument(
     "--prompt-len",
     type=int,
     default=128,
@@ -86,6 +91,7 @@ gen_len = args.gen_len
 ) = [p / 100 for p in args.percent]
 gpu_batch_size = args.gpu_batch_size
 num_gpu_batches = args.num_gpu_batches
+verbose = args.verbose
 
 policy = Policy(
     gpu_batch_size=gpu_batch_size,
@@ -105,7 +111,7 @@ logger.info(policy)
 
 # flexgen test
 with FlexGen(
-    checkpoint=checkpoint, policy=policy, compute_device=compute_device, verbose=True
+    checkpoint=checkpoint, policy=policy, compute_device=compute_device, verbose=verbose
 ) as model:
     num_prompts = policy.gpu_batch_size * policy.num_gpu_batches
     test_hf_gen(

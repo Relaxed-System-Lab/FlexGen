@@ -18,5 +18,5 @@ python3 run.py --checkpoint facebook/opt-13b --compute-device cuda:0 --normal-lo
 # watch GPU memory usage
 watch -n 0.1 nvidia-smi
 
-# req
+# requirements
 pipreqs . --encoding utf-8 --force
