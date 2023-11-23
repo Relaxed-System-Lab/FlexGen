@@ -2,8 +2,10 @@
 import os
 import shutil
 import functools
+from collections import Counter
 
 import torch
+from accelerate.utils import named_module_tensors
 
 from loaders import ModelPolicyLoader, BlockPolicyLoader
 from utils import logging, Policy, get_module_from_name, get_info, to_compute_device
@@ -67,8 +69,11 @@ class NextLayerMixin:
         self.mpl.load_layer(layer_name, self.compute_device)
 
     def load_next_layer_log(self, layer_name):
+        layer_module = get_module_from_name(self.model, layer_name)
+        cnt = Counter(p.device for _, p in named_module_tensors(layer_module, True, True))
+
         logger.debug(
-            f"load_layer: {self.mpl.model_name}.{layer_name} to {self.compute_device}"
+            f"load_layer: {self.mpl.model_name}.{layer_name} to {self.compute_device}, devices: {cnt}."
         )
 
     def load_next_layer(self, layer_name):
@@ -86,9 +91,13 @@ class PrevLayerMixin:
         self.mpl.offload_layer(layer_name)
 
     def offload_prev_layer_log(self, layer_name):
+        layer_module = get_module_from_name(self.model, layer_name)
+        cnt = Counter(p.device for _, p in named_module_tensors(layer_module, True, True))
+
         logger.debug(
-            f"offload_layer: {self.mpl.model_name}.{layer_name} by policy."
+            f"offload_layer: {self.mpl.model_name}.{layer_name} by policy, devices: {cnt}."
         )
+        
 
     def offload_prev_layer(self, layer_name):
         stream = self.streams["prev_layer"]
@@ -110,6 +119,11 @@ class CurrLayerMixin:
     def prepare_curr_layer_log(self, layer_name, inputs):
         # debug infos
         logger.debug(f"weights and inputs of {layer_name} are prepared")
+
+        layer_module = get_module_from_name(self.model, layer_name)
+        cnt = Counter(p.device for _, p in named_module_tensors(layer_module, True, True))
+        logger.debug(f"layer devices: {cnt}")
+
         args_k, kwargs_k = self.bpl.get_kth_input(1)
         logger.debug(f"args_k: {get_info(args_k)}")
         logger.debug(f"kwarg_k: {get_info(kwargs_k)}")
@@ -259,6 +273,7 @@ class FlexGen(
 
     def __exit__(self, *exception_infos):
         # elasped time
+        torch.cuda.synchronize()
         self.stop_event.record()
         elasped_time = self.start_event.elapsed_time(self.stop_event)
         logger.info(f"elasped time: {elasped_time}ms")
@@ -357,7 +372,7 @@ class FlexGen(
             if self.verbose:
                 self.offload_prev_layer_log(layer_name=prev_layer_name)
                 self.load_next_layer_log(layer_name=next_layer_name)
-                logger.debug("over.\n\n")
+                logger.debug("over.\n\n\n\n\n")
 
             return output
 

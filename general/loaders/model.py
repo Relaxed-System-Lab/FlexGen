@@ -30,10 +30,10 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 # logger.setLevel(logging.INFO)
 
-__all__ = ["ModelPolicyLoader", "MetaModel"]
+__all__ = ["ModelPolicyLoader", "ModelBasics"]
 
 
-class MetaModel:
+class ModelBasics:
     """
     functions:
         1) download model weights
@@ -89,7 +89,7 @@ class MetaModel:
         self.device_map = self.get_policy_weight_map()
 
         # offloading
-        self._backups = {name: None for name in self.layers_dict}
+        self.layer_state_dict_backups = {name: None for name in self.layers_dict}
 
         # test run to get layer names by calling order
         self.layer_names = self.test_run(device="cuda:0")
@@ -175,7 +175,7 @@ class MetaModel:
                 for block_name, block_module in module.named_children():
                     res[prefix + name + "." + block_name] = block_module
             else:
-                res.update(MetaModel.get_layer_module_dict(module, prefix + name + "."))
+                res.update(ModelBasics.get_layer_module_dict(module, prefix + name + "."))
         return res
 
     def get_policy_weight_map(self):
@@ -368,9 +368,9 @@ class MetaModel:
         buffer_names = list(set(all_names) - set(weight_names))
 
         # backup
-        if self._backups[layer_name] is None:
-            backup = copy.deepcopy(layer_module)
-            self._backups[layer_name] = backup
+        if self.layer_state_dict_backups[layer_name] is None:
+            backup = copy.deepcopy(layer_module.state_dict())
+            self.layer_state_dict_backups[layer_name] = backup
 
         # weights
         layer_dat_files = [
@@ -392,29 +392,31 @@ class MetaModel:
     def layer_offload(self, layer_name):
         logger.debug(f"offload_layer: {self.model_name}.{layer_name} to meta\n\n")
         layer_module = get_module_from_name(self.model, layer_name)
-        weight_names = [
-            layer_name + "." + name
-            for name, _ in named_module_tensors(layer_module, False, True)
-        ]
-        all_names = [
-            layer_name + "." + name
-            for name, _ in named_module_tensors(layer_module, True, True)
-        ]
-        buffer_names = list(set(all_names) - set(weight_names))
-
+        
         # weights
-        if self._backups[layer_name] is not None:
-            set_module_from_name(self.model, layer_name, self._backups[layer_name])
-            self._backups[layer_name] = None
-            layer_module.to('meta')
+        if self.layer_state_dict_backups[layer_name] is not None:
+            layer_module.load_state_dict(self.layer_state_dict_backups[layer_name], assign=True) # Pytorch 2.2
+            self.layer_state_dict_backups[layer_name] = None
         else:
+            # names
+            weight_names = [
+                layer_name + "." + name
+                for name, _ in named_module_tensors(layer_module, False, True)
+            ]
+            all_names = [
+                layer_name + "." + name
+                for name, _ in named_module_tensors(layer_module, True, True)
+            ]
+            buffer_names = list(set(all_names) - set(weight_names))
+            
+            # weights
             for w in weight_names:
                 self.tensor_offload(w)
 
-        # buffers
-        for b in buffer_names:
-            value = get_module_from_name(self.model, b)
-            set_module_tensor_to_device(self.model, b, "cpu", value)
+            # buffers
+            for b in buffer_names:
+                value = get_module_from_name(self.model, b)
+                set_module_tensor_to_device(self.model, b, "cpu", value)
 
     def to_layer_offloading_forward(self, layer_name, device, recorder):
         layer = get_module_from_name(self.model, layer_name)
@@ -478,7 +480,7 @@ class MetaModel:
         return recorder
 
 
-class ModelPolicyLoader(MetaModel):
+class ModelPolicyLoader(ModelBasics):
     def __init__(
         self,
         checkpoint: str,
@@ -524,10 +526,8 @@ class ModelPolicyLoader(MetaModel):
         tensor = get_module_from_name(self.model, tensor_name)
 
         device = self.device_map[tensor_name]
-        if device == "disk":
-            device = "meta"
-        device = torch.device(device)  # destination
-
+        device = "meta" if device == "disk" else device 
+            
         if tensor.device != device:
             set_module_tensor_to_device(self.model, tensor_name, device, tensor)
 
@@ -535,13 +535,11 @@ class ModelPolicyLoader(MetaModel):
         layer_module = get_module_from_name(self.model, layer_name)
 
         # backup
-        if self._backups[layer_name] is None:
-            backup = copy.deepcopy(layer_module)
-            self._backups[layer_name] = backup
+        if self.layer_state_dict_backups[layer_name] is None:
+            backup = copy.deepcopy(layer_module.state_dict())
+            self.layer_state_dict_backups[layer_name] = backup
         
-        # logger.info(f'{layer_name}: {set(p.device for _, p in named_module_tensors(self._backups[layer_name], False, True))}')
-        # input()
-
+        # names
         weight_names = [
             layer_name + "." + name
             for name, _ in named_module_tensors(layer_module, False, True)
@@ -569,34 +567,32 @@ class ModelPolicyLoader(MetaModel):
             value = get_module_from_name(self.model, b)
             set_module_tensor_to_device(self.model, b, compute_device, value)
 
-
     def offload_layer(self, layer_name):
         layer_module = get_module_from_name(self.model, layer_name)
-        weight_names = [
-            layer_name + "." + name
-            for name, _ in named_module_tensors(layer_module, False, True)
-        ]  
-        all_names = [
-            layer_name + "." + name
-            for name, _ in named_module_tensors(layer_module, True, True)
-        ]
-        buffer_names = list(set(all_names) - set(weight_names))
-
-        # weights
-        if self._backups[layer_name] is not None:
-            set_module_from_name(self.model, layer_name, self._backups[layer_name])
-            # logger.info(f'{layer_name}: {set(p.device for _, p in named_module_tensors(self._backups[layer_name], False, True))}')
-            self._backups[layer_name] = None
-            layer_module.to('meta')
-            # input()
+        
+        if self.layer_state_dict_backups[layer_name] is not None:
+            layer_module.load_state_dict(self.layer_state_dict_backups[layer_name], assign=True) # Pytorch 2.2
+            self.layer_state_dict_backups[layer_name] = None
         else:
+            # names
+            weight_names = [
+            layer_name + "." + name
+                for name, _ in named_module_tensors(layer_module, False, True)
+            ]  
+            all_names = [
+                layer_name + "." + name
+                for name, _ in named_module_tensors(layer_module, True, True)
+            ]
+            buffer_names = list(set(all_names) - set(weight_names))
+
+            # weights
             for w in weight_names:
                 self.offload_module_tensor(w)
 
-        # buffers
-        for b in buffer_names:
-            value = get_module_from_name(self.model, b)
-            set_module_tensor_to_device(self.model, b, "cpu", value)
+            # buffers
+            for b in buffer_names:
+                value = get_module_from_name(self.model, b)
+                set_module_tensor_to_device(self.model, b, "cpu", value)
 
     def init_all_weights(self):
         # load weights
@@ -631,7 +627,7 @@ if __name__ == "__main__":
         pin_weight=True,
     )
 
-    m = MetaModel(checkpoint, policy)
+    m = ModelBasics(checkpoint, policy)
     print(m.layer_names)
 
     ###############

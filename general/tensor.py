@@ -73,6 +73,8 @@ class MixTensor:
         shape = tensor.shape
         dtype = tensor.dtype
 
+        assert device != torch.device('meta')
+
         g_data, c_data, d_data = cls.split_tensor(tensor, split_dim, percents)
 
         # try:

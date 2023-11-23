@@ -1,5 +1,5 @@
 accelerate==0.23.0
 numpy==1.24.3
-torch==2.0.1
+torch==2.2.0.dev20231122+cu118
 tqdm==4.65.0
 transformers==4.33.2
