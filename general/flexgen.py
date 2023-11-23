@@ -269,8 +269,12 @@ class FlexGen(
 
     def __enter__(self):
         self.model_to_flexgen()
+
         self.start_event.record()
+        
+        # os.environ['TOKENIZERS_PARALLELISM'] = 'false' 
         torch.cuda.memory._record_memory_history()
+        
         return self.model
 
     def __exit__(self, *exception_infos):
@@ -278,20 +282,14 @@ class FlexGen(
         self.stop_event.record()
         torch.cuda.synchronize()
         elasped_time = self.start_event.elapsed_time(self.stop_event)
-        logger.info(f"elasped time: {elasped_time}ms")
+        logger.info(f"elasped time: {elasped_time / 10 ** 3:.3f}s")
 
         torch.cuda.memory._dump_snapshot("mem_snapshot.pickle")
 
         # self.model_reset()
         torch.cuda.empty_cache()
         shutil.rmtree(self.args_offload_dir)
-        
-        # import sys, traceback, threading
-        # thread_names = {t.ident: t.name for t in threading.enumerate()}
-        # for thread_id, frame in sys._current_frames().items():
-        #     print("Thread %s:" % thread_names.get(thread_id, thread_id))
-        #     traceback.print_stack(frame)
-        #     print()
+        logger.info('over.')
 
     def get_flexgen_forward(
         self, old_forward, prev_layer_name, curr_layer_name, next_layer_name
@@ -368,7 +366,9 @@ class FlexGen(
             if curr_layer_name == self.layer_names[-1]:
                 output = to_compute_device(output)
             self.layer_sync() # 
-            torch.cuda.empty_cache() 
+
+            # import gc; gc.collect()
+            # torch.cuda.empty_cache() 
 
             # log after sync
             logger.debug(f"outputs after concat: {get_info(output)}")

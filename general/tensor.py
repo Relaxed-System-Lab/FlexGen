@@ -4,7 +4,6 @@ from math import floor
 import torch
 from accelerate.utils import send_to_device
 
-
 class MixTensor:
     """
     Tensor on mixed devices (gpu/cpu/disk)
@@ -66,25 +65,30 @@ class MixTensor:
     @classmethod
     def from_tensor(
         cls, tensor: torch.Tensor, percents: Mapping[str, float], file_path: str
-    ):  
-        # This function won't increase GPU memory usage.
-
+    ):
         # tensor from compute device to g/c/d mixed device
         split_dim = cls.get_split_dim(tensor)
         device = tensor.device  # compute device
         shape = tensor.shape
         dtype = tensor.dtype
 
-        assert device != torch.device('meta')
-
         g_data, c_data, d_data = cls.split_tensor(tensor, split_dim, percents)
 
-        g_data = (
-            g_data.to("cuda:0" if torch.cuda.is_available() else "cpu", non_blocking=True)
-            if g_data.numel()
-            else None
-        )
-        c_data = c_data.to("cpu", non_blocking=True) if c_data.numel() else None
+        # g
+        if g_data.numel():
+            g_data = g_data.to(
+                "cuda:0" if torch.cuda.is_available() else "cpu", non_blocking=True
+            )
+        else:
+            g_data = None
+
+        # c
+        if c_data.numel():
+            c_data = c_data.to("cpu", non_blocking=True)
+        else:
+            c_data = None
+
+        # d
         if d_data.numel():
             d_data = d_data.cpu().numpy()
             np_shape = d_data.shape
@@ -96,7 +100,7 @@ class MixTensor:
         else:
             d_data = None
 
-        mix_data = (g_data, c_data, d_data)
+        mix_data = g_data, c_data, d_data
 
         return cls(
             mix_data=mix_data,
@@ -110,9 +114,6 @@ class MixTensor:
 
     def to_tensor(self):
         # move g/c/d mixed data to compute device
-        if self.mix_data is None:
-            raise RuntimeError('mix data is None.')
-        
         g_data, c_data, d_data = self.mix_data
         self.mix_data = None
 
