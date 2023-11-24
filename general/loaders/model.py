@@ -277,7 +277,7 @@ class ModelBasics:
                     size_total * percents_target - size_done * percents_done
                 ) / size_todo
 
-            logger.debug(f"{layer_name}, {percents_done}, size_todo: {size_todo}")
+            logger.info(f"{layer_name}, {percents_done}, size_todo: {size_todo}")
 
         self.weight_assign_dict = weight_assign_dict
         self.device_map = {
@@ -364,7 +364,7 @@ class ModelBasics:
         set_module_tensor_to_device(self.model, tensor_name, "meta")
 
     def layer_device_load(self, layer_name, device):
-        logger.debug(f"load_layer: {self.model_name}.{layer_name} to {device}")
+        logger.info(f"load_layer: {self.model_name}.{layer_name} to {device}")
         layer_module = get_module_from_name(self.model, layer_name)
         weight_names = [
             layer_name + "." + name
@@ -399,7 +399,7 @@ class ModelBasics:
             set_module_tensor_to_device(self.model, b, device, value)
 
     def layer_offload(self, layer_name):
-        logger.debug(f"offload_layer: {self.model_name}.{layer_name} to meta\n\n")
+        logger.info(f"offload_layer: {self.model_name}.{layer_name} to meta\n\n")
         layer_module = get_module_from_name(self.model, layer_name)
         
         # weights
@@ -447,7 +447,7 @@ class ModelBasics:
             return output
 
         layer.forward = new_forward
-        logger.debug(f"{layer_name} to layer-offloading forward")
+        logger.info(f"{layer_name} to layer-offloading forward")
 
     def reset_forward(self, layer_name):
         layer = get_module_from_name(self.model, layer_name)
@@ -455,7 +455,7 @@ class ModelBasics:
         if hasattr(layer, "_layer_offloading_forward"):
             layer.forward = layer._layer_offloading_forward
             delattr(layer, "_layer_offloading_forward")
-            logger.debug(f"{layer_name} from layer-offloading to old.")
+            logger.info(f"{layer_name} from layer-offloading to old.")
 
     @contextlib.contextmanager
     def layer_offloading(self, device, recorder):
@@ -605,7 +605,7 @@ class ModelPolicyLoader(ModelBasics):
 
     def init_all_weights(self):
         # load weights
-        logger.debug("init all weights...")
+        logger.info("init all weights...")
         for tensor_name, device in tqdm(
             self.device_map.items(), desc="model init: loading by policy..."
         ):

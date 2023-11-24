@@ -15,5 +15,5 @@ logging.basicConfig(
         logging.FileHandler(f"{log_dir}/{time_info}.log", "w"),
         logging.StreamHandler(),
     ],
-    level=logging.DEBUG,
+    level=logging.INFO,
 )

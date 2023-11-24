@@ -72,7 +72,7 @@ class NextLayerMixin:
         layer_module = get_module_from_name(self.model, layer_name)
         cnt = Counter(p.device for _, p in named_module_tensors(layer_module, True, True))
 
-        logger.debug(
+        logger.info(
             f"load_layer: {self.mpl.model_name}.{layer_name} to {self.compute_device}, devices: {cnt}."
         )
 
@@ -94,7 +94,7 @@ class PrevLayerMixin:
         layer_module = get_module_from_name(self.model, layer_name)
         cnt = Counter(p.device for _, p in named_module_tensors(layer_module, True, True))
 
-        logger.debug(
+        logger.info(
             f"offload_layer: {self.mpl.model_name}.{layer_name} by policy, devices: {cnt}."
         )
         
@@ -118,15 +118,15 @@ class CurrLayerMixin:
 
     def prepare_curr_layer_log(self, layer_name, inputs):
         # debug infos
-        logger.debug(f"weights and inputs of {layer_name} are prepared")
+        logger.info(f"weights and inputs of {layer_name} are prepared")
 
         layer_module = get_module_from_name(self.model, layer_name)
         cnt = Counter(p.device for _, p in named_module_tensors(layer_module, True, True))
-        logger.debug(f"layer devices: {cnt}")
+        logger.info(f"layer devices: {cnt}")
 
         args_k, kwargs_k = self.bpl.get_kth_input(1)
-        logger.debug(f"args_k: {get_info(args_k)}")
-        logger.debug(f"kwarg_k: {get_info(kwargs_k)}")
+        logger.info(f"args_k: {get_info(args_k)}")
+        logger.info(f"kwarg_k: {get_info(kwargs_k)}")
 
     def prepare_curr_layer(self, layer_name, inputs):
         self._prepare_curr_layer(layer_name, inputs)
@@ -153,15 +153,15 @@ class PrevBatchMixin:
     def store_prev_batch_log(self, k):
         assert self.K >= 2
         if k > 0:
-            logger.debug(
+            logger.info(
                 f"offloaded output of batch {k - 1}: {get_info(self.bpl.get_kth_output(k - 1))}"
             )
         elif k == 0:  # corner case
             exists_mix = self.bpl.exists_mix_input()
-            logger.debug(
+            logger.info(
                 f"output from last layer is the input of curr layer, exists MixTensor: {exists_mix}"
             )
-            logger.debug(
+            logger.info(
                 f"offloaded input of batch {self.K - 1}: {get_info(self.bpl.get_kth_input(-1))}"
             )
 
@@ -184,7 +184,7 @@ class CurrBatchMixin:
         self.bpl.free_kth_input(k)
 
     def compute_curr_batch_log(self, k, old_forward):
-        logger.debug(f"computed batch {k}")
+        logger.info(f"computed batch {k}")
 
     def compute_curr_batch(self, k, old_forward):
         self._compute_curr_batch(k, old_forward)
@@ -205,12 +205,12 @@ class NextBatchMixin:
     def load_next_batch_log(self, k):
         assert self.K >= 2
         if k < self.K - 1:
-            logger.debug(
+            logger.info(
                 f"loaded input of batch {k + 1}: {get_info(self.bpl.get_kth_input(k + 1))}"
             )
         else:  # corner case
-            logger.debug(f"curr layer's output is next layer's input")
-            logger.debug(
+            logger.info(f"curr layer's output is next layer's input")
+            logger.info(
                 f"loaded output of batch {0}: {get_info(self.bpl.get_kth_output(0))}"
             )
 
@@ -322,12 +322,12 @@ class FlexGen(
         @torch.no_grad()
         @functools.wraps(old_forward)
         def flexgen_forward(*args, **kwargs):
-            logger.debug(
+            logger.info(
                 f"layer: {self.mpl.model_name}.{curr_layer_name} calls forward"
             )
             if self.verbose:
-                logger.debug(f"args: {get_info(args)}")
-                logger.debug(f"kwargs: {get_info(kwargs)}")
+                logger.info(f"args: {get_info(args)}")
+                logger.info(f"kwargs: {get_info(kwargs)}")
 
             # steps of FlexGen Alg.1
             self.offload_prev_layer(layer_name=prev_layer_name) #
@@ -354,7 +354,7 @@ class FlexGen(
                     self.store_prev_batch_log(k)
                     self.compute_curr_batch_log(k, old_forward)
                     self.load_next_batch_log(k)
-                    logger.debug("")
+                    logger.info("")
 
                 torch.cuda.nvtx.range_pop()
 
@@ -371,11 +371,11 @@ class FlexGen(
             # torch.cuda.empty_cache() 
 
             # log after sync
-            logger.debug(f"outputs after concat: {get_info(output)}")
+            logger.info(f"outputs after concat: {get_info(output)}")
             if self.verbose:
                 self.offload_prev_layer_log(layer_name=prev_layer_name)
                 self.load_next_layer_log(layer_name=next_layer_name)
-                logger.debug("over.\n\n\n\n\n")
+                logger.info("over.\n\n\n\n\n")
 
             return output
 
@@ -400,7 +400,7 @@ class FlexGen(
             curr_layer_name=curr_layer_name,
             next_layer_name=next_layer_name,
         )
-        logger.debug(f"{curr_layer_name} to flexgen forward")
+        logger.info(f"{curr_layer_name} to flexgen forward")
 
     def model_to_flexgen(self):
         for j, _ in enumerate(self.layer_names):
@@ -416,7 +416,7 @@ class FlexGen(
         if hasattr(layer, "_flexgen_old_forward"):
             layer.forward = layer._flexgen_old_forward
             delattr(layer, "_flexgen_old_forward")
-            logger.debug(f"{layer_name} from flexgen to old.")
+            logger.info(f"{layer_name} from flexgen to old.")
 
     def model_reset(self):
         for j, _ in enumerate(self.layer_names):
