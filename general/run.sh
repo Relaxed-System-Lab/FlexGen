@@ -25,5 +25,6 @@ watch -n 0.1 nvidia-smi
 # requirements
 pipreqs . --encoding utf-8 --force
 
-# torch 2.2
-pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cu118
+# upgrade to torch 2.2
+pip install --upgrade --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cu118
+pip uninstall transformer-engine
