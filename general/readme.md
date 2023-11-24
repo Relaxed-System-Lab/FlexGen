@@ -3,9 +3,8 @@
 
 TODO:
 - policy solver
-- profiler: cuda event
-- multiple GPU / tensor parallelism: devices manager
-- various inference algorithms (including: ?)
+- multiple GPUs, tensor parallelism
+- various inference algorithms (including: speculative)
 
 Requirements:
 ```shell
