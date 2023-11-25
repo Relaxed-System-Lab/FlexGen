@@ -3,7 +3,7 @@ from accelerate.utils import honor_type
 from typing import Mapping
 from utils import logging
 
-from tensor import MixTensor, BatchListTensor
+from .tensor import MixTensor, BatchListTensor
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
