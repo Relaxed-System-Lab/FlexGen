@@ -6,7 +6,7 @@ from utils.test import test_hf_gen
 from flexgen import FlexGenCtx, Policy
 
 # argparse
-parser = argparse.ArgumentParser(description="Test-EOS_LLM")
+parser = argparse.ArgumentParser(description="FlexGen.general")
 parser.add_argument(
     "--checkpoint",
     type=str,
