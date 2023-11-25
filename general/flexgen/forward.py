@@ -295,8 +295,7 @@ class FlexGenCtx(
 
         # rm tmp 
         torch.cuda.empty_cache()
-        shutil.rmtree(self.args_offload_dir)
-        os.makedirs(self.args_offload_dir, exist_ok=True)
+        self.bpl.del_offload_dir()
         logger.info('over.')
 
         # self.model_reset()

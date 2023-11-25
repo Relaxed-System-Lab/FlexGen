@@ -1,6 +1,7 @@
 # block operations: split/merge layer input/output data structures to mini-batch/large-batch
 
 import os
+import shutil
 from utils import (
     logging,
     Policy,
@@ -28,8 +29,11 @@ class BlockPolicyLoader:
     def __init__(self, policy: Policy, args_offload_dir: str):
         self.policy = policy
         self.K = policy.num_gpu_batches
-        self.args_offload_dir = args_offload_dir
-        os.makedirs(args_offload_dir, exist_ok=True)  # in args offloader
+        self.args_offload_dir = args_offload_dir + '/tmp'
+        os.makedirs(self.args_offload_dir, exist_ok=True)  # in args offloader
+
+    def del_offload_dir(self):
+        shutil.rmtree(self.args_offload_dir)
 
     def layer_init(self, inputs, layer_name):
         self.inputs = inputs
