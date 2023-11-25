@@ -25,7 +25,7 @@ parser.add_argument(
 parser.add_argument(
     "--compute-device",
     type=str,
-    default="cuda:0",  # multi GPUs
+    default="cuda:0",  # TODO: multi GPUs
     metavar="S",
     help="compute device (cpu or cuda)",
 )
