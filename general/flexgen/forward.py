@@ -16,7 +16,7 @@ logger.setLevel(logging.DEBUG)
 
 __all__ = ['FlexGenCtx']
 
-class FlexGenBase:
+class FlexGenBasics:
     """
     Assets that FlexGen need to utilize: loaders (by policy), streams, etc.
     """
@@ -252,7 +252,7 @@ class FlexGenCtx(
     # CurrBatchMixin,
     # NextBatchMixin,
     # SyncMixin,
-    FlexGenBase,
+    FlexGenBasics,
 ):
     """
     FlexGen Context:
