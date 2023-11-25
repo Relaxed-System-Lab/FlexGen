@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
 
-class FlexGenAssets:
+class FlexGenBase:
     """
     Assets that FlexGen need to utilize: loaders (by policy), streams, etc.
     """
@@ -59,7 +59,7 @@ class FlexGenAssets:
         self.stream_names = list(self.streams.keys())
 
 
-class NextLayerMixin:
+# class NextLayerMixin:
     """
     load next layers' weights/buffers.
     """
@@ -82,7 +82,7 @@ class NextLayerMixin:
             self._load_next_layer(layer_name)
 
 
-class PrevLayerMixin:
+# class PrevLayerMixin:
     """
     offload prev layer's weights/buffers.
     """
@@ -105,7 +105,7 @@ class PrevLayerMixin:
             self._offload_prev_layer(layer_name)
 
 
-class CurrLayerMixin:
+# class CurrLayerMixin:
     """
     1. load current weights/buffers (it should be already loaded except for the very 1st layer)
     2. prepare layer input args, kwargs (but do not load them)
@@ -135,7 +135,7 @@ class CurrLayerMixin:
         return self.bpl.concat_outputs()
 
 
-class PrevBatchMixin:
+# class PrevBatchMixin:
     """
     store prev batch output (act, kv).
     """
@@ -171,7 +171,7 @@ class PrevBatchMixin:
             self._store_prev_batch(k)
 
 
-class CurrBatchMixin:
+# class CurrBatchMixin:
     """
     load curr batch input (act, kv) and compute the k-th forward pass.
     """
@@ -190,7 +190,7 @@ class CurrBatchMixin:
         self._compute_curr_batch(k, old_forward)
 
 
-class NextBatchMixin:
+# class NextBatchMixin:
     """
     load next batch input (act, kv).
     """
@@ -220,7 +220,7 @@ class NextBatchMixin:
             self._load_next_batch(k)
 
 
-class SyncMixin:
+# class SyncMixin:
     """
     Synchronizations.
     """
@@ -243,14 +243,14 @@ class SyncMixin:
 
 
 class FlexGen(
-    PrevLayerMixin,
-    CurrLayerMixin,
-    NextLayerMixin,
-    PrevBatchMixin,
-    CurrBatchMixin,
-    NextBatchMixin,
-    SyncMixin,
-    FlexGenAssets,
+    # PrevLayerMixin,
+    # CurrLayerMixin,
+    # NextLayerMixin,
+    # PrevBatchMixin,
+    # CurrBatchMixin,
+    # NextBatchMixin,
+    # SyncMixin,
+    FlexGenBase,
 ):
     """
     override the forward method for each layer (e.g. embedding layers, transformer blocks, etc.) of a CausalLM.
@@ -259,12 +259,13 @@ class FlexGen(
         >>>     model.generate(...)
     """
 
-    def __init__(self, verbose=False, *args, **kwargs):
+    def __init__(self, exp_dir, verbose, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
         self.start_event = torch.cuda.Event(enable_timing=True)
         self.stop_event = torch.cuda.Event(enable_timing=True)
 
+        self.exp_dir = exp_dir
         self.verbose = verbose
 
     def __enter__(self):
@@ -287,14 +288,17 @@ class FlexGen(
         logger.info(f"elasped time: {elasped_time / 10 ** 3:.3f}s")
 
         # mem snapshot
-        torch.cuda.memory._dump_snapshot("mem_snapshot.pickle")
+        torch.cuda.memory._dump_snapshot(f"{self.exp_dir}/mem_snapshot.pickle")
 
-        # self.model_reset()
+        # rm tmp 
         torch.cuda.empty_cache()
         shutil.rmtree(self.args_offload_dir)
+        os.makedirs(self.args_offload_dir, exist_ok=True)
         logger.info('over.')
 
-        # exit
+        # self.model_reset()
+
+        # kill
         import signal
         os.kill(os.getpid(), signal.SIGKILL)
 

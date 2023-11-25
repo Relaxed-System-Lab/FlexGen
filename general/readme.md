@@ -21,6 +21,6 @@ pip uninstall transformer-engine
 
 Example:
 ```shell
-python3 run.py --checkpoint facebook/opt-1.3b --compute_device cuda:0
+python3 run.py --checkpoint facebook/opt-1.3b --compute-device cuda:0 --prompt-len 32 --gen-len 10 --gpu-batch-size 8 --num-gpu-batches 10 --percent 50 50 100 0 100 0 --verbose --normal-loop
 ```
 

@@ -1,11 +1,12 @@
 import argparse
 
-from utils import logging
+from utils import logging, logging_config
 from utils.test import test_hf_gen
 from flexgen import FlexGen, Policy
 
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
+# # logging
+# logger = logging.getLogger(__name__)
+# logger.setLevel(logging.DEBUG)
 
 # argparse
 parser = argparse.ArgumentParser(description="Test-EOS_LLM")
@@ -73,7 +74,19 @@ parser.add_argument(
     type=int,
     default=10,
 )
+parser.add_argument(
+    "--log-dir",
+    type=str,
+    default="logs"
+)
 args = parser.parse_args()
+
+# logging
+log_dir = args.log_dir
+exp_dir = logging_config(log_dir)
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 # flexgen config
 checkpoint = args.checkpoint
@@ -111,7 +124,7 @@ logger.info(policy)
 
 # flexgen test
 with FlexGen(
-    checkpoint=checkpoint, policy=policy, compute_device=compute_device, verbose=verbose
+    checkpoint=checkpoint, policy=policy, compute_device=compute_device, verbose=verbose, exp_dir=exp_dir
 ) as model:
     num_prompts = policy.gpu_batch_size * policy.num_gpu_batches
     test_hf_gen(
