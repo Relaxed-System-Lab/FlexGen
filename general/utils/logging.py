@@ -8,7 +8,7 @@ def logging_config(args):
     log_dir = args.log_dir
     ckpt_str = args.checkpoint.replace('/', '.') 
     time_info = datetime.now().strftime("%Y-%m-%d,%H:%M:%S,%f")
-    exp_dir = f'{log_dir}/{ckpt_str}-{time_info}'
+    exp_dir = f'{log_dir}/{ckpt_str}/{time_info}'
 
     os.makedirs(f'{exp_dir}', exist_ok=True)
 

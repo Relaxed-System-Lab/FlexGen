@@ -4,10 +4,6 @@ from utils import logging, logging_config
 from utils.test import test_hf_gen
 from offloading.flexgen_zigzag import FlexGen, Policy
 
-# # logging
-# logger = logging.getLogger(__name__)
-# logger.setLevel(logging.DEBUG)
-
 # argparse
 parser = argparse.ArgumentParser(description="Test-EOS_LLM")
 parser.add_argument(
@@ -19,10 +15,11 @@ parser.add_argument(
     "facebook/opt-125m "
     "facebook/opt-1.3b "
     "facebook/opt-13b "
+    "facebook/opt-30b "
     "Salesforce/codegen-350M-mono "
     "bigscience/bloom-560m "
     "NousResearch/Llama-2-7b-chat-hf "
-    "huggyllama/llama-7b s",
+    "huggyllama/llama-7b ",
 )
 parser.add_argument(
     "--compute-device",
@@ -74,11 +71,7 @@ parser.add_argument(
     type=int,
     default=10,
 )
-parser.add_argument(
-    "--log-dir",
-    type=str,
-    default="logs"
-)
+parser.add_argument("--log-dir", type=str, default="logs")
 args = parser.parse_args()
 
 # logging
@@ -106,6 +99,8 @@ num_gpu_batches = args.num_gpu_batches
 verbose = args.verbose
 
 policy = Policy(
+    prompt_len=prompt_len,
+    gen_len=gen_len,
     gpu_batch_size=gpu_batch_size,
     num_gpu_batches=num_gpu_batches,
     weights_gpu_percent=weights_gpu_percent,
@@ -123,14 +118,17 @@ logger.info(policy)
 
 # flexgen test
 with FlexGen(
-    checkpoint=checkpoint, policy=policy, compute_device=compute_device, verbose=verbose, exp_dir=exp_dir
-) as model:
-    num_prompts = policy.gpu_batch_size * policy.num_gpu_batches
+    checkpoint=checkpoint,
+    policy=policy,
+    compute_device=compute_device,
+    verbose=verbose,
+    exp_dir=exp_dir,
+) as flexgen_model:
     test_hf_gen(
         checkpoint,
-        model,
-        num_prompts,
-        compute_device,
+        flexgen_model,
+        num_prompts=policy.block_size,
+        compute_device=compute_device,
         prompt_len=prompt_len,
         gen_len=gen_len,
     )

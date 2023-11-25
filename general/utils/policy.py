@@ -7,6 +7,9 @@ __all__ = ["Policy"]
 
 @dataclass(frozen=True)
 class Policy:
+    prompt_len: int 
+    gen_len: int 
+
     gpu_batch_size: int
     num_gpu_batches: int
 
@@ -23,6 +26,10 @@ class Policy:
 
     # Whether to use pinned memory for weights on CPU
     pin_weight: bool
+
+    @property
+    def block_size(self):
+        return self.gpu_batch_size * self.num_gpu_batches
 
     @property
     def weights_disk_percent(self):

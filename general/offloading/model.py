@@ -92,6 +92,8 @@ class ModelBasics:
 
         self.layer_names = self.get_ordered_layer_names()
 
+        self.print_mem_info()
+
     def get_ordered_layer_names(self):
         # test run to get layer names by calling order
         layer_name_file = os.path.join(self.offload_folder, 'layer_names.pt')
@@ -284,47 +286,6 @@ class ModelBasics:
         }
         logger.info("device_map is prepared!")
 
-        mem_g = (
-            sum(
-                [
-                    np.prod(v["shape"])
-                    for _, v in weight_assign_dict.items()
-                    if "cuda" in v["assigned_device"] and "shape" in v
-                ]
-            )
-            * (torch.finfo(self.dtype).bits / 8)
-            / (2**30)
-        )
-        mem_c = (
-            sum(
-                [
-                    np.prod(v["shape"])
-                    for _, v in weight_assign_dict.items()
-                    if v["assigned_device"] == "cpu" and "shape" in v
-                ]
-            )
-            * (torch.finfo(self.dtype).bits / 8)
-            / (2**30)
-        )
-        mem_d = (
-            sum(
-                [
-                    np.prod(v["shape"])
-                    for _, v in weight_assign_dict.items()
-                    if v["assigned_device"] == "disk" and "shape" in v
-                ]
-            )
-            * (torch.finfo(self.dtype).bits / 8)
-            / (2**30)
-        )
-        mem = mem_d + mem_c + mem_g
-        logger.info(
-            f"CausalLM {self.checkpoint} is to be loaded on: "
-            f"\nGPU Mem {mem_g:.2f} GiB ({mem_g / mem:.2%}), "
-            f"CPU Mem {mem_c:.2f} GiB ({mem_c / mem:.2%}), "
-            f"Disk Mem {mem_d:.2f} Gib ({mem_d / mem:.2%})"
-        )
-
         return self.device_map
 
     def get_tied_target(self, tensor_name):
@@ -336,6 +297,64 @@ class ModelBasics:
                 for name in group:
                     if name + ".dat" in self.dat_files:
                         return name
+
+    def print_mem_info(self):
+        # model 
+        mem_g = (
+            sum(
+                [
+                    np.prod(v["shape"])
+                    for _, v in self.weight_assign_dict.items()
+                    if "cuda" in v["assigned_device"] and "shape" in v
+                ]
+            )
+            * (torch.finfo(self.dtype).bits / 8)
+            / (2**30)
+        )
+        mem_c = (
+            sum(
+                [
+                    np.prod(v["shape"])
+                    for _, v in self.weight_assign_dict.items()
+                    if v["assigned_device"] == "cpu" and "shape" in v
+                ]
+            )
+            * (torch.finfo(self.dtype).bits / 8)
+            / (2**30)
+        )
+        mem_d = (
+            sum(
+                [
+                    np.prod(v["shape"])
+                    for _, v in self.weight_assign_dict.items()
+                    if v["assigned_device"] == "disk" and "shape" in v
+                ]
+            )
+            * (torch.finfo(self.dtype).bits / 8)
+            / (2**30)
+        )
+        mem = mem_d + mem_c + mem_g
+        logger.info(
+            f"CausalLM {self.checkpoint}\nTotal Mem: {mem:.3f} GiB, "
+            f"GPU Mem {mem_g:.3f} GiB ({mem_g / mem:.2%}), "
+            f"CPU Mem {mem_c:.3f} GiB ({mem_c / mem:.2%}), "
+            f"Disk Mem {mem_d:.3f} Gib ({mem_d / mem:.2%})"
+        )
+
+        # cache 
+        try:
+            config = AutoConfig.from_pretrained(self.checkpoint, torch_dtype=self.dtype)
+            hidden_size = config.hidden_size
+            num_hidden_layers = config.num_hidden_layers
+
+            block_size = self.policy.gpu_batch_size * self.policy.num_gpu_batches
+            seq_len = self.policy.prompt_len + self.policy.gen_len
+            
+            cache_bytes_per_layer = (torch.finfo(self.dtype).bits / 8) * block_size * seq_len * hidden_size * 2
+            cache_bytes = cache_bytes_per_layer * num_hidden_layers
+            logger.info(f"\nKV Cache Total Mem: {cache_bytes / (2 ** 30):.3f} Gib, Per Layer: {cache_bytes_per_layer / (2 ** 30):.3f} Gib")
+        except:
+            pass
 
     def tensor_device_load(self, tensor_name, device="cpu"):
         actual_tensor_name = self.get_tied_target(tensor_name)
