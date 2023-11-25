@@ -1,8 +1,9 @@
 import argparse
+import logging
 
-from utils import logging, logging_config
+from utils.logging import logging_config
 from utils.test import test_hf_gen
-from offloading.flexgen_zigzag import FlexGen, Policy
+from flexgen import FlexGenCtx, Policy
 
 # argparse
 parser = argparse.ArgumentParser(description="Test-EOS_LLM")
@@ -112,12 +113,13 @@ policy = Policy(
     overlap=overlap,
     pin_weight=True,
 )  # TODO: policy solver
+num_prompts=policy.block_size
 
 logger.info(args)
 logger.info(policy)
 
 # flexgen test
-with FlexGen(
+with FlexGenCtx(
     checkpoint=checkpoint,
     policy=policy,
     compute_device=compute_device,
@@ -127,7 +129,7 @@ with FlexGen(
     test_hf_gen(
         checkpoint,
         flexgen_model,
-        num_prompts=policy.block_size,
+        num_prompts=num_prompts,
         compute_device=compute_device,
         prompt_len=prompt_len,
         gen_len=gen_len,

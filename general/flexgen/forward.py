@@ -7,12 +7,14 @@ from collections import Counter
 import torch
 from accelerate.utils import named_module_tensors
 
-from . import ModelPolicyLoader, BlockPolicyLoader
+from .model import ModelPolicyLoader
+from .block import BlockPolicyLoader
 from utils import logging, Policy, get_module_from_name, get_info, to_compute_device
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
+__all__ = ['FlexGenCtx']
 
 class FlexGenBase:
     """
@@ -242,7 +244,7 @@ class FlexGenBase:
             torch.cuda.synchronize()
 
 
-class FlexGen(
+class FlexGenCtx(
     # PrevLayerMixin,
     # CurrLayerMixin,
     # NextLayerMixin,
@@ -253,7 +255,8 @@ class FlexGen(
     FlexGenBase,
 ):
     """
-    override the forward method for each layer (e.g. embedding layers, transformer blocks, etc.) of a CausalLM.
+    FlexGen Context:
+        override the forward method for each layer (e.g. embedding layers, transformer blocks, etc.) of a CausalLM.
     example:
         >>> with FlexGen(checkpoint, policy) as model:
         >>>     model.generate(...)
@@ -341,10 +344,10 @@ class FlexGen(
                 logger.info(f"kwargs: {get_info(kwargs)}")
 
             # steps of FlexGen Alg.1
-            self.offload_prev_layer(layer_name=prev_layer_name) #
-            self.load_next_layer(layer_name=next_layer_name) #
-            self.prepare_curr_layer(layer_name=curr_layer_name, inputs=(args, kwargs)) # helper
-            self.curr_sync() # current stream sync
+            self.offload_prev_layer(layer_name=prev_layer_name) 
+            self.prepare_curr_layer(layer_name=curr_layer_name, inputs=(args, kwargs)) 
+            self.load_next_layer(layer_name=next_layer_name) 
+            self.curr_sync() 
 
             # log after sync
             if self.verbose:
@@ -356,8 +359,8 @@ class FlexGen(
                 torch.cuda.nvtx.range_push(f'{curr_layer_name}-batch-{k}')
 
                 self.store_prev_batch(k) 
-                self.load_next_batch(k) 
                 self.compute_curr_batch(k, old_forward) 
+                self.load_next_batch(k) 
                 self.batch_sync() 
 
                 # log after sync
@@ -376,7 +379,7 @@ class FlexGen(
             output = self.concat_outputs()
             if curr_layer_name == self.layer_names[-1]:
                 output = to_compute_device(output)
-            self.layer_sync() # 
+            self.layer_sync()  
 
             # import gc; gc.collect()
             # torch.cuda.empty_cache() 
