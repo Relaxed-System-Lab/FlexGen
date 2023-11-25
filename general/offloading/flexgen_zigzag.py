@@ -7,7 +7,7 @@ from collections import Counter
 import torch
 from accelerate.utils import named_module_tensors
 
-from loaders import ModelPolicyLoader, BlockPolicyLoader
+from . import ModelPolicyLoader, BlockPolicyLoader
 from utils import logging, Policy, get_module_from_name, get_info, to_compute_device
 
 logger = logging.getLogger(__name__)
@@ -24,8 +24,8 @@ class FlexGenBase:
         checkpoint: str,
         policy: Policy,
         compute_device="cpu",
-        weights_offload_dir="weights_offload_dir",
-        args_offload_dir="args_offload_dir",
+        weights_offload_dir="_weights_offload_dir",
+        args_offload_dir="_args_offload_dir",
     ):
         self.checkpoint = checkpoint
         self.policy = policy

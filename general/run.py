@@ -2,7 +2,7 @@ import argparse
 
 from utils import logging, logging_config
 from utils.test import test_hf_gen
-from flexgen import FlexGen, Policy
+from offloading.flexgen_zigzag import FlexGen, Policy
 
 # # logging
 # logger = logging.getLogger(__name__)
@@ -82,8 +82,7 @@ parser.add_argument(
 args = parser.parse_args()
 
 # logging
-log_dir = args.log_dir
-exp_dir = logging_config(log_dir)
+exp_dir = logging_config(args)
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)

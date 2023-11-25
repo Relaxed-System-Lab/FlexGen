@@ -2,6 +2,7 @@ import torch
 from accelerate.utils import honor_type
 from typing import Mapping
 from utils import logging
+
 from tensor import MixTensor, BatchListTensor
 
 logger = logging.getLogger(__name__)
@@ -9,7 +10,6 @@ logger.setLevel(logging.DEBUG)
 
 __all__ = [
     "get_module_from_name",
-    "set_module_from_name",
     "get_info",
     "to_compute_device",
     "to_mixed_device",

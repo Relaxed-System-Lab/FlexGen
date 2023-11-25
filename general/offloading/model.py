@@ -23,12 +23,11 @@ from accelerate.utils import (
 )
 
 from utils import logging, Policy
-from utils import get_module_from_name, set_module_from_name
+from utils import get_module_from_name
 
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
-# logger.setLevel(logging.INFO)
+logger.setLevel(logging.INFO)
 
 __all__ = ["ModelPolicyLoader", "ModelBasics"]
 
@@ -59,7 +58,7 @@ class ModelBasics:
         self,
         checkpoint: str,
         policy: Policy,
-        weights_offload_dir: str = "weights_offload_dir",
+        weights_offload_dir: str = "offload_dir_weights",
         dtype=torch.float16,
     ):
         # download weights
@@ -494,7 +493,7 @@ class ModelPolicyLoader(ModelBasics):
         self,
         checkpoint: str,
         policy: Policy,
-        weights_offload_dir: str = "weights_offload_dir",
+        weights_offload_dir: str,
         dtype=torch.float16,
     ):
         super().__init__(
