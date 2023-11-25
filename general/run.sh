@@ -21,3 +21,6 @@ pipreqs . --encoding utf-8 --force
 # upgrade to torch 2.2
 pip install --upgrade --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cu118
 pip uninstall transformer-engine
+
+# refactor
+git add . && git commit -m "refactor" && git push
