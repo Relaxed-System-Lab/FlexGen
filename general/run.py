@@ -3,7 +3,7 @@ import logging
 
 from utils.logging import logging_config
 from utils.test import test_hf_gen
-from core import FlexGenCtx, Policy
+from hook import FlexGenCtx, Policy
 
 # argparse
 parser = argparse.ArgumentParser(description="FlexGen.general")
