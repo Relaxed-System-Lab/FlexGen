@@ -131,15 +131,16 @@ def to_mixed_device(obj, policy, prefix):
         return (m0, m1)
     elif isinstance(obj, torch.Tensor):
         # activations / attention mask
-        return MixTensor.from_tensor(
-            obj,
-            percents={
-                "cuda": policy.act_gpu_percent,
-                "cpu": policy.act_cpu_percent,
-                "disk": policy.act_disk_percent,
-            },
-            file_path=f"{prefix}.dat",
-        )
+        return obj
+        # return MixTensor.from_tensor(
+        #     obj,
+        #     percents={
+        #         "cuda": policy.act_gpu_percent,
+        #         "cpu": policy.act_cpu_percent,
+        #         "disk": policy.act_disk_percent,
+        #     },
+        #     file_path=f"{prefix}.dat",
+        # )
     elif isinstance(obj, tuple):
         return tuple(
             to_mixed_device(o, policy, f"{prefix}.{i}") for i, o in enumerate(obj)

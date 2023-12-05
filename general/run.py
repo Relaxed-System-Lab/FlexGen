@@ -3,7 +3,7 @@ import logging
 
 from utils.logging import logging_config
 from utils.test import test_hf_gen
-from hook import FlexGenCtx, Policy
+from hooks import FlexGen, FlexPolicy
 
 # argparse
 parser = argparse.ArgumentParser(description="FlexGen.general")
@@ -99,7 +99,7 @@ gpu_batch_size = args.gpu_batch_size
 num_gpu_batches = args.num_gpu_batches
 verbose = args.verbose
 
-policy = Policy(
+policy = FlexPolicy(
     prompt_len=prompt_len,
     gen_len=gen_len,
     gpu_batch_size=gpu_batch_size,
@@ -119,7 +119,7 @@ logger.info(args)
 logger.info(policy)
 
 # flexgen test
-with FlexGenCtx(
+with FlexGen(
     checkpoint=checkpoint,
     policy=policy,
     compute_device=compute_device,

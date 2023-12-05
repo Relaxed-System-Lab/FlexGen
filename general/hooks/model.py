@@ -22,17 +22,17 @@ from accelerate.utils import (
     send_to_device,
 )
 
-from utils import logging, Policy
+from utils import logging, FlexPolicy
 from utils import get_module_from_name
 
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
-__all__ = ["ModelPolicyLoader", "ModelBasics"]
+__all__ = ["ModelPolicyLoader", "ModelPrepare"]
 
 
-class ModelBasics:
+class ModelPrepare:
     """
     functions:
         1) download model weights
@@ -57,7 +57,7 @@ class ModelBasics:
     def __init__(
         self,
         checkpoint: str,
-        policy: Policy,
+        policy: FlexPolicy,
         weights_offload_dir: str = "offload_dir_weights",
         dtype=torch.float16,
     ):
@@ -94,18 +94,8 @@ class ModelBasics:
 
         self.print_mem_info()
 
-    def get_ordered_layer_names(self):
-        # test run to get layer names by calling order
-        layer_name_file = os.path.join(self.offload_folder, 'layer_names.pt')
-        if not os.path.exists(layer_name_file):
-            layer_names = self.test_run(device="cuda:0")
-            torch.save(layer_names, layer_name_file)
-            assert len(layer_names) == self.num_layers
-            return layer_names 
-        else:
-            return torch.load(layer_name_file)
-
-    def is_on_disk(self):
+    # to download model weights to the disk
+    def _is_ok(self):
         # check if the model has a complete copy on disk.
         if not os.path.isdir(self.offload_folder):
             return False
@@ -123,7 +113,7 @@ class ModelBasics:
         return len(set(tensor_names) - set(dat_file_names)) == 0
 
     def download(self):
-        if not self.is_on_disk():
+        if not self._is_ok():
             try:
                 if os.path.exists(self.offload_folder):
                     shutil.rmtree(self.offload_folder)
@@ -142,7 +132,7 @@ class ModelBasics:
                 pass
 
         # check the model on disk
-        if not self.is_on_disk():
+        if not self._is_ok():
             err_msg = "Mismatch between offload folder and model"
             logger.error(err_msg)
             raise RuntimeError(err_msg)
@@ -151,6 +141,7 @@ class ModelBasics:
             f"The whole model has been downloaded an processed to offload_folder: '{self.offload_folder}'"
         )
 
+    # model structure analysis, and policy weight device map
     def get_empty_model(self):
         config = AutoConfig.from_pretrained(self.checkpoint, torch_dtype=self.dtype)
         with init_empty_weights():
@@ -185,7 +176,7 @@ class ModelBasics:
                 for block_name, block_module in module.named_children():
                     res[prefix + name + "." + block_name] = block_module
             else:
-                res.update(ModelBasics.get_layer_module_dict(module, prefix + name + "."))
+                res.update(ModelPrepare.get_layer_module_dict(module, prefix + name + "."))
         return res
 
     def get_policy_weight_map(self):
@@ -356,7 +347,8 @@ class ModelBasics:
         except:
             pass
 
-    def tensor_device_load(self, tensor_name, device="cpu"):
+    # to get layer calling order by a test run
+    def _tensor_device_load(self, tensor_name, device="cpu"):
         actual_tensor_name = self.get_tied_target(tensor_name)
 
         metadata = self.index[actual_tensor_name]
@@ -378,10 +370,10 @@ class ModelBasics:
         value = torch.from_numpy(np_memmap)
         set_module_tensor_to_device(self.model, tensor_name, device, value)
 
-    def tensor_offload(self, tensor_name):
+    def _tensor_offload(self, tensor_name):
         set_module_tensor_to_device(self.model, tensor_name, "meta")
 
-    def layer_device_load(self, layer_name, device):
+    def _layer_device_load(self, layer_name, device):
         logger.info(f"load_layer: {self.model_name}.{layer_name} to {device}")
         layer_module = get_module_from_name(self.model, layer_name)
         weight_names = [
@@ -409,14 +401,14 @@ class ModelBasics:
         ), f"dat file error, {self.dat_files}"
 
         for w in weight_names:
-            self.tensor_device_load(w, device=device)
+            self._tensor_device_load(w, device=device)
 
         # buffers
         for b in buffer_names:
             value = get_module_from_name(self.model, b)
             set_module_tensor_to_device(self.model, b, device, value)
 
-    def layer_offload(self, layer_name):
+    def _layer_offload(self, layer_name):
         logger.info(f"offload_layer: {self.model_name}.{layer_name} to meta\n\n")
         layer_module = get_module_from_name(self.model, layer_name)
         
@@ -438,20 +430,20 @@ class ModelBasics:
             
             # weights
             for w in weight_names:
-                self.tensor_offload(w)
+                self._tensor_offload(w)
 
             # buffers
             for b in buffer_names:
                 value = get_module_from_name(self.model, b)
                 set_module_tensor_to_device(self.model, b, "cpu", value)
 
-    def to_layer_offloading_forward(self, layer_name, device, recorder):
+    def _to_layer_offloading_forward(self, layer_name, device, recorder):
         layer = get_module_from_name(self.model, layer_name)
         layer._layer_offloading_forward = old_forward = layer.forward
 
         @functools.wraps(old_forward)
         def new_forward(*args, **kwargs):
-            self.layer_device_load(layer_name, device)
+            self._layer_device_load(layer_name, device)
 
             # record layer calling order
             recorder.append(layer_name)
@@ -459,7 +451,7 @@ class ModelBasics:
             with torch.no_grad():
                 output = old_forward(*args, **kwargs)
 
-            self.layer_offload(layer_name)
+            self._layer_offload(layer_name)
             # torch.cuda.empty_cache()
 
             return output
@@ -467,7 +459,7 @@ class ModelBasics:
         layer.forward = new_forward
         logger.info(f"{layer_name} to layer-offloading forward")
 
-    def reset_forward(self, layer_name):
+    def _reset_forward(self, layer_name):
         layer = get_module_from_name(self.model, layer_name)
 
         if hasattr(layer, "_layer_offloading_forward"):
@@ -476,7 +468,7 @@ class ModelBasics:
             logger.info(f"{layer_name} from layer-offloading to old.")
 
     @contextlib.contextmanager
-    def layer_offloading(self, device, recorder):
+    def _layer_offloading(self, device, recorder):
         """recording layer calling order by layer-offloading execution"""
         try:
             # unordered layer names
@@ -484,16 +476,16 @@ class ModelBasics:
 
             # every layer to test forward
             for layer_name in layer_names:
-                self.to_layer_offloading_forward(layer_name, device, recorder)
+                self._to_layer_offloading_forward(layer_name, device, recorder)
 
             yield
 
         finally:
             # every layer to old forward
             for layer_name in layer_names:
-                self.reset_forward(layer_name)
+                self._reset_forward(layer_name)
 
-    def test_run(self, device="cuda:0"):
+    def _test_run(self, device="cuda:0"):
         tokenizer = AutoTokenizer.from_pretrained(self.checkpoint)
         if tokenizer.pad_token is None:
             tokenizer.pad_token = tokenizer.eos_token  # eos padding
@@ -502,16 +494,27 @@ class ModelBasics:
         inputs = tokenizer(prompts, return_tensors="pt", padding=True).to(device)
 
         recorder = []
-        with self.layer_offloading(device, recorder):
+        with self._layer_offloading(device, recorder):
             self.model.generate(inputs.input_ids, max_new_tokens=1)
         return recorder
 
+    def get_ordered_layer_names(self):
+        # test run to get layer names by calling order
+        layer_name_file = os.path.join(self.offload_folder, 'layer_names.pt')
+        if not os.path.exists(layer_name_file):
+            layer_names = self._test_run(device="cuda:0")
+            torch.save(layer_names, layer_name_file)
+            assert len(layer_names) == self.num_layers
+            return layer_names 
+        else:
+            return torch.load(layer_name_file)
+        
 
-class ModelPolicyLoader(ModelBasics):
+class ModelPolicyLoader(ModelPrepare):
     def __init__(
         self,
         checkpoint: str,
-        policy: Policy,
+        policy: FlexPolicy,
         weights_offload_dir: str,
         dtype=torch.float16,
     ):
@@ -641,7 +644,7 @@ if __name__ == "__main__":
     # checkpoint = "Salesforce/codegen-350M-mono"
     # checkpoint = 'bigscience/bloom-560m' #
 
-    policy = Policy(
+    policy = FlexPolicy(
         gpu_batch_size=1,
         num_gpu_batches=4,
         weights_gpu_percent=0.0,
@@ -654,7 +657,7 @@ if __name__ == "__main__":
         pin_weight=True,
     )
 
-    m = ModelBasics(checkpoint, policy)
+    m = ModelPrepare(checkpoint, policy)
     print(m.layer_names)
 
     ###############

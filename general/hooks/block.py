@@ -4,7 +4,7 @@ import os
 import shutil
 from utils import (
     logging,
-    Policy,
+    FlexPolicy,
     get_kth_batch_inputs,
     to_compute_device,
     to_mixed_device,
@@ -26,7 +26,7 @@ class BlockPolicyLoader:
         a block consist of multiple GPU batches.
     """
 
-    def __init__(self, policy: Policy, args_offload_dir: str):
+    def __init__(self, policy: FlexPolicy, args_offload_dir: str):
         self.policy = policy
         self.K = policy.num_gpu_batches
         self.args_offload_dir = args_offload_dir + '/tmp'

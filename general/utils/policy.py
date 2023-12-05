@@ -1,12 +1,12 @@
 from dataclasses import dataclass
 
 
-__all__ = ["Policy"]
+__all__ = ["FlexPolicy"]
 
 # TODO: policy solver
 
 @dataclass(frozen=True)
-class Policy:
+class FlexPolicy:
     prompt_len: int 
     gen_len: int 
 

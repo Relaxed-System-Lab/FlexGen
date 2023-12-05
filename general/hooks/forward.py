@@ -9,14 +9,14 @@ from accelerate.utils import named_module_tensors
 
 from .model import ModelPolicyLoader
 from .block import BlockPolicyLoader
-from utils import logging, Policy, get_module_from_name, get_info, to_compute_device
+from utils import logging, FlexPolicy, get_module_from_name, get_info, to_compute_device
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
-__all__ = ['FlexGenCtx']
+__all__ = ['FlexGen']
 
-class FlexGenBasics:
+class FlexPrepare:
     """
     Assets that FlexGen need to utilize: loaders (by policy), streams, etc.
     """
@@ -24,7 +24,7 @@ class FlexGenBasics:
     def __init__(
         self,
         checkpoint: str,
-        policy: Policy,
+        policy: FlexPolicy,
         compute_device="cpu",
         weights_offload_dir="_weights_offload_dir",
         args_offload_dir="_args_offload_dir",
@@ -244,7 +244,7 @@ class FlexGenBasics:
             torch.cuda.synchronize()
 
 
-class FlexGenCtx(
+class FlexGen(
     # PrevLayerMixin,
     # CurrLayerMixin,
     # NextLayerMixin,
@@ -252,7 +252,7 @@ class FlexGenCtx(
     # CurrBatchMixin,
     # NextBatchMixin,
     # SyncMixin,
-    FlexGenBasics,
+    FlexPrepare,
 ):
     """
     FlexGen Context:
@@ -298,7 +298,7 @@ class FlexGenCtx(
         self.bpl.del_offload_dir()
         logger.info('over.')
 
-        # self.model_reset()
+        self.model_reset()
 
         # kill
         import signal
@@ -343,8 +343,8 @@ class FlexGenCtx(
                 logger.info(f"kwargs: {get_info(kwargs)}")
 
             # steps of FlexGen Alg.1
-            self.offload_prev_layer(layer_name=prev_layer_name) 
             self.prepare_curr_layer(layer_name=curr_layer_name, inputs=(args, kwargs)) 
+            self.offload_prev_layer(layer_name=prev_layer_name) 
             self.load_next_layer(layer_name=next_layer_name) 
             self.curr_sync() 
 
@@ -357,15 +357,15 @@ class FlexGenCtx(
             for k in range(self.K):
                 torch.cuda.nvtx.range_push(f'{curr_layer_name}-batch-{k}')
 
-                self.store_prev_batch(k) 
                 self.compute_curr_batch(k, old_forward) 
+                self.store_prev_batch(k) 
                 self.load_next_batch(k) 
                 self.batch_sync() 
 
                 # log after sync
                 if self.verbose:
-                    self.store_prev_batch_log(k)
                     self.compute_curr_batch_log(k, old_forward)
+                    self.store_prev_batch_log(k)
                     self.load_next_batch_log(k)
                     logger.info("")
 
