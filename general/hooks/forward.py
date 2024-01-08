@@ -60,6 +60,9 @@ class FlexPrepare:
         self.streams["next_batch"] = torch.cuda.Stream() if self.use_streams else None
         self.stream_names = list(self.streams.keys())
 
+        for name, stream in self.streams.items():
+            logger.info(f"{name}: id-{stream.stream_id}")
+
 
 # class NextLayerMixin:
     """
@@ -379,6 +382,8 @@ class FlexGen(
             if curr_layer_name == self.layer_names[-1]:
                 output = to_compute_device(output)
             self.layer_sync()  
+
+            torch.cuda.nvtx.mark(f'{curr_layer_name}-batch-{k}-end')
 
             # import gc; gc.collect()
             # torch.cuda.empty_cache() 
