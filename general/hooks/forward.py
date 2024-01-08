@@ -301,7 +301,9 @@ class FlexGen(
         self.bpl.del_offload_dir()
         logger.info('over.')
 
-        self.model_reset()
+        # self.model_reset()
+        # if exception_infos:
+        #     print(exception_infos)
 
         # kill
         import signal
@@ -384,7 +386,8 @@ class FlexGen(
             self.layer_sync()  
 
             torch.cuda.nvtx.mark(f'{curr_layer_name}-batch-{k}-end')
-
+            # if curr_layer_name == 'model.decoder.layers.6':
+            #     exit(0)
             # import gc; gc.collect()
             # torch.cuda.empty_cache() 
 

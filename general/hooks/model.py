@@ -527,6 +527,7 @@ class ModelPolicyLoader(ModelPrepare):
         self.init_all_weights()
 
     def load_module_tensor(self, tensor_name, device):
+        torch.cuda.nvtx.range_push(f'load {tensor_name}')
         tensor = get_module_from_name(self.model, tensor_name)
         if tensor.device == device:
             return
@@ -547,10 +548,17 @@ class ModelPolicyLoader(ModelPrepare):
             dtype = "int16"
 
         # load .dat file to device
+        torch.cuda.nvtx.mark('load mmap')
         load_path = os.path.join(self.offload_folder, actual_tensor_name + ".dat")
         np_memmap = np.memmap(load_path, dtype=dtype, shape=shape, mode="r")
+        
+        torch.cuda.nvtx.mark('to torch tensor')
         value = torch.from_numpy(np_memmap)
+
+        torch.cuda.nvtx.mark('to device')
         set_module_tensor_to_device(self.model, tensor_name, device, value)
+
+        torch.cuda.nvtx.range_pop()
 
     def offload_module_tensor(self, tensor_name):
         tensor = get_module_from_name(self.model, tensor_name)
@@ -562,6 +570,7 @@ class ModelPolicyLoader(ModelPrepare):
             set_module_tensor_to_device(self.model, tensor_name, device, tensor)
 
     def load_layer(self, layer_name, compute_device):
+        torch.cuda.nvtx.range_push(f'load layer {layer_name}')
         layer_module = get_module_from_name(self.model, layer_name)
 
         # backup
@@ -597,7 +606,10 @@ class ModelPolicyLoader(ModelPrepare):
             value = get_module_from_name(self.model, b)
             set_module_tensor_to_device(self.model, b, compute_device, value)
 
+        torch.cuda.nvtx.range_pop()
+
     def offload_layer(self, layer_name):
+        torch.cuda.nvtx.range_push(f'offload layer {layer_name}')
         layer_module = get_module_from_name(self.model, layer_name)
         
         if self.layer_state_dict_backups[layer_name] is not None:
@@ -623,6 +635,8 @@ class ModelPolicyLoader(ModelPrepare):
             for b in buffer_names:
                 value = get_module_from_name(self.model, b)
                 set_module_tensor_to_device(self.model, b, "cpu", value)
+
+        torch.cuda.nvtx.range_pop()
 
     def init_all_weights(self):
         # load weights

@@ -4,6 +4,10 @@ test/model_weights
 test/offload_folder
 *.dat
 !test/.log
+*.nsys-rep
+fo*.log 
+general-v2
+flexgen_offload_dir/
 
 # Mac system files
 .DS_store
