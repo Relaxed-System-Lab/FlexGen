@@ -526,37 +526,41 @@ class ModelPolicyLoader(ModelPrepare):
         )
         self.init_all_weights()
 
+    # adapters
     def load_module_tensor(self, tensor_name, device):
         tensor = get_module_from_name(self.model, tensor_name)
+        
         if tensor.device == torch.device(device):
             return
 
         torch.cuda.nvtx.range_push(f'load {tensor_name}')
-        actual_tensor_name = self.get_tied_target(tensor_name)
+        if tensor.device.type.lower() in ['meta', 'disk']:
+            torch.cuda.nvtx.mark(f'from {tensor.device.type.lower()}')
+            actual_tensor_name = self.get_tied_target(tensor_name)
 
-        metadata = self.index[actual_tensor_name]
+            metadata = self.index[actual_tensor_name]
 
-        # copied from accelerate.utils.offload
-        shape = tuple(metadata["shape"])
-        if shape == ():
-            # NumPy memory-mapped arrays can't have 0 dims so it was saved as 1d tensor
-            shape = (1,)
+            # copied from accelerate.utils.offload
+            shape = tuple(metadata["shape"])
+            if shape == ():
+                # NumPy memory-mapped arrays can't have 0 dims so it was saved as 1d tensor
+                shape = (1,)
 
-        dtype = metadata["dtype"]
-        if dtype == "bfloat16":
-            # NumPy does not support bfloat16 so this was saved as a int16
-            dtype = "int16"
+            dtype = metadata["dtype"]
+            if dtype == "bfloat16":
+                # NumPy does not support bfloat16 so this was saved as a int16
+                dtype = "int16"
 
-        # load .dat file to device
-        torch.cuda.nvtx.mark('load mmap')
-        load_path = os.path.join(self.offload_folder, actual_tensor_name + ".dat")
-        np_memmap = np.memmap(load_path, dtype=dtype, shape=shape, mode="r")
-        
-        torch.cuda.nvtx.mark('to torch tensor')
-        value = torch.from_numpy(np_memmap)
+            # load .dat file to device
+            torch.cuda.nvtx.mark('load mmap')
+            load_path = os.path.join(self.offload_folder, actual_tensor_name + ".dat")
+            np_memmap = np.memmap(load_path, dtype=dtype, shape=shape, mode="r") # [:]
+            value = torch.from_numpy(np_memmap)
+        else:
+            torch.cuda.nvtx.mark('from cpu')
+            value = tensor
 
         torch.cuda.nvtx.mark('to device')
-
         set_module_tensor_to_device(self.model, tensor_name, device, value)
 
         torch.cuda.nvtx.range_pop()
