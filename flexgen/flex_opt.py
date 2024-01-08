@@ -1048,6 +1048,9 @@ class OptLM:
                 self.update_attention_mask(i, k)
             for j in range(self.num_layers):
                 for k in range(self.num_gpu_batches):
+                    msg = f"{i}-{j}-{k}"
+                    torch.cuda.nvtx.range_push(msg)
+                    print(msg)
                     self.load_weight(i, j+1, k)
                     self.load_cache(i, j, k+1)
                     self.store_hidden(i, j, k-1)
@@ -1055,6 +1058,7 @@ class OptLM:
                     self.compute_layer(i, j, k)
                     self.store_cache(i, j, k-1)
                     self.sync()
+                    torch.cuda.nvtx.range_pop()
             timers("generate").stop()
 
         # Epilogue
