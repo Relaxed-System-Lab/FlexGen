@@ -527,11 +527,11 @@ class ModelPolicyLoader(ModelPrepare):
         self.init_all_weights()
 
     def load_module_tensor(self, tensor_name, device):
-        torch.cuda.nvtx.range_push(f'load {tensor_name}')
         tensor = get_module_from_name(self.model, tensor_name)
-        if tensor.device == device:
+        if tensor.device == torch.device(device):
             return
 
+        torch.cuda.nvtx.range_push(f'load {tensor_name}')
         actual_tensor_name = self.get_tied_target(tensor_name)
 
         metadata = self.index[actual_tensor_name]
@@ -556,6 +556,7 @@ class ModelPolicyLoader(ModelPrepare):
         value = torch.from_numpy(np_memmap)
 
         torch.cuda.nvtx.mark('to device')
+
         set_module_tensor_to_device(self.model, tensor_name, device, value)
 
         torch.cuda.nvtx.range_pop()
@@ -566,7 +567,7 @@ class ModelPolicyLoader(ModelPrepare):
         device = self.device_map[tensor_name]
         device = "meta" if device == "disk" else device 
             
-        if tensor.device != device:
+        if tensor.device != torch.device(device):
             set_module_tensor_to_device(self.model, tensor_name, device, tensor)
 
     def load_layer(self, layer_name, compute_device):
