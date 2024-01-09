@@ -367,6 +367,7 @@ class ModelPrepare:
         # load .dat file to device
         load_path = os.path.join(self.offload_folder, actual_tensor_name + ".dat")
         np_memmap = np.memmap(load_path, dtype=dtype, shape=shape, mode="r")
+        # np_memmap = np.lib.format.open_memmap(load_path, dtype=dtype, shape=shape, mode="r")
         value = torch.from_numpy(np_memmap)
         set_module_tensor_to_device(self.model, tensor_name, device, value)
 
@@ -555,6 +556,7 @@ class ModelPolicyLoader(ModelPrepare):
             torch.cuda.nvtx.mark('load mmap')
             load_path = os.path.join(self.offload_folder, actual_tensor_name + ".dat")
             np_memmap = np.memmap(load_path, dtype=dtype, shape=shape, mode="r") # [:]
+            # np_memmap = np.lib.format.open_memmap(load_path, dtype=dtype, shape=shape, mode="r") # [:]
             value = torch.from_numpy(np_memmap)
         else:
             torch.cuda.nvtx.mark('from cpu')

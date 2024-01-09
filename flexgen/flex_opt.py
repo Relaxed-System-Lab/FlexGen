@@ -160,10 +160,12 @@ class InputEmbed:
         weight_home.store(weights)
 
     def load_weight(self, weight_home, weight_read_buf, k):
+        torch.cuda.nvtx.range_push(f"load {self.__class__.__name__}")
         w_token, w_pos = weight_home.val
         if k == 0:
             dst = self.weight_load_dst
             weight_read_buf.store((w_token.smart_copy(dst), w_pos.smart_copy(dst)))
+        torch.cuda.nvtx.range_pop()
 
     def init_cache_one_gpu_batch(self, cache_home):
         pass  # do nothing
@@ -226,12 +228,14 @@ class OutputEmbed:
         weight_home.store(weights)
 
     def load_weight(self, weight_home, weight_read_buf, k):
+        torch.cuda.nvtx.range_push(f"load {self.__class__.__name__}")
         w_ln, b_ln, w_token = weight_home.val
         if k == 0:
             dst1 = self.weight_load_dst
             dst2 = self.compute
             weight_read_buf.store((w_ln.smart_copy(dst2), b_ln.smart_copy(dst2),
                 w_token.smart_copy(dst1)))
+        torch.cuda.nvtx.range_pop()
 
     def init_cache_one_gpu_batch(self, cache_home):
         pass  # do nothing
@@ -307,6 +311,7 @@ class SelfAttention:
         weight_home.store(weights) # home1 = weight list
 
     def load_weight(self, weight_home, weight_read_buf, k):
+        torch.cuda.nvtx.range_push(f"load {self.__class__.__name__}")
         w_q, b_q, w_k, b_k, w_v, b_v, w_out, b_out, w_ln, b_ln = weight_home.val
         if k == 0:
             dst1 = self.weight_load_dst
@@ -317,6 +322,7 @@ class SelfAttention:
                 w_v.smart_copy(dst1), b_v.smart_copy(dst2),
                 w_out.smart_copy(dst1), b_out.smart_copy(dst2),
                 w_ln.smart_copy(dst2), b_ln.smart_copy(dst2)))
+        torch.cuda.nvtx.range_pop()
 
     def init_cache_one_gpu_batch(self, cache_home):
         if self.policy.cache_gpu_percent == 100:
@@ -495,6 +501,7 @@ class MLP:
         weight_home.store(weights)
 
     def load_weight(self, weight_home, weight_read_buf, k):
+        torch.cuda.nvtx.range_push(f"load {self.__class__.__name__}")
         wi, bi, wo, bo, w_ln, b_ln = weight_home.val
         if k == 0:
             dst1 = self.weight_load_dst
@@ -503,6 +510,7 @@ class MLP:
                 wi.smart_copy(dst1), bi.smart_copy(dst2),
                 wo.smart_copy(dst1), bo.smart_copy(dst2),
                 w_ln.smart_copy(dst2), b_ln.smart_copy(dst2)))
+        torch.cuda.nvtx.range_pop()
 
     def init_cache_one_gpu_batch(self, cache_home):
         pass  # do nothing
@@ -551,12 +559,14 @@ class TransformerLayer:
         weight_home.store((home1, home2)) # weight_home[j] = (home1, home2) # all tensors used by SA and MLP
 
     def load_weight(self, weight_home, weight_read_buf, k):
+        torch.cuda.nvtx.range_push(f"load {self.__class__.__name__}")
         read_buf1, read_buf2 = ValueHolder(), ValueHolder()
         home1, home2 = weight_home.val
         self.attention.load_weight(home1, read_buf1, k)
         self.mlp.load_weight(home2, read_buf2, k)
         if k == 0:
             weight_read_buf.store((read_buf1, read_buf2))
+        torch.cuda.nvtx.range_pop()
 
     def init_cache_one_gpu_batch(self, cache_home):
         self.attention.init_cache_one_gpu_batch(cache_home)
@@ -661,13 +671,15 @@ class OptLM:
             i += 1
             if i == self.execute_gen_len:
                 return
-
+            
+        torch.cuda.nvtx.range_push(f"load {j}-{self.__class__.__name__}")
         # Load from weight_home to weight_read_buf
         if overlap:
             with torch.cuda.stream(self.load_weight_stream):
                 self.layers[j].load_weight(self.weight_home[j], self.weight_read_buf[j], k)
         else:
             self.layers[j].load_weight(self.weight_home[j], self.weight_read_buf[j], k)
+        torch.cuda.nvtx.range_pop()
 
     def delete_weight(self, j, k):
         if k == 0:
