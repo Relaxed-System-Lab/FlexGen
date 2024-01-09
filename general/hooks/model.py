@@ -368,7 +368,7 @@ class ModelPrepare:
         load_path = os.path.join(self.offload_folder, actual_tensor_name + ".dat")
         np_memmap = np.memmap(load_path, dtype=dtype, shape=shape, mode="r")
         # np_memmap = np.lib.format.open_memmap(load_path, dtype=dtype, shape=shape, mode="r")
-        value = torch.from_numpy(np_memmap)#.pin_memory() # pin
+        value = torch.from_numpy(np_memmap).pin_memory() # pin
         set_module_tensor_to_device(self.model, tensor_name, device, value)
 
     def _tensor_offload(self, tensor_name):
@@ -535,8 +535,8 @@ class ModelPolicyLoader(ModelPrepare):
             return
 
         torch.cuda.nvtx.range_push(f'load {tensor_name}')
-        if tensor.device.type.lower() in ['meta', 'disk']:
-            torch.cuda.nvtx.mark(f'from {tensor.device.type.lower()}')
+        if tensor.device == torch.device('meta'):
+            torch.cuda.nvtx.mark(f'from meta')
             actual_tensor_name = self.get_tied_target(tensor_name)
 
             metadata = self.index[actual_tensor_name]
@@ -557,14 +557,14 @@ class ModelPolicyLoader(ModelPrepare):
             load_path = os.path.join(self.offload_folder, actual_tensor_name + ".dat")
             np_memmap = np.memmap(load_path, dtype=dtype, shape=shape, mode="r") # [:]
             # np_memmap = np.lib.format.open_memmap(load_path, dtype=dtype, shape=shape, mode="r") # [:]
-            value = torch.from_numpy(np_memmap).pin_memory()
-        else:
+            value = torch.from_numpy(np_memmap)
+            value = value if value.is_pinned else value.pin_memory()
+        elif tensor.device == torch.device('cpu'):
             torch.cuda.nvtx.mark('from cpu')
             value = tensor
-        
-        # if not value.is_pinned:
-            # torch.cuda.nvtx.mark('pin')
-            # value = value.pin_memory()
+            value = value if value.is_pinned else value.pin_memory()
+        elif tensor.is_cuda:
+            value = tensor
 
         torch.cuda.nvtx.mark('to device')
         set_module_tensor_to_device(self.model, tensor_name, device, value)
