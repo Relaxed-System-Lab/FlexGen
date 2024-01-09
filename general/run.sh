@@ -3,7 +3,7 @@ nsys profile -o prof.qdrep --force-overwrite true python3 run.py
 
 nsys profile -o prof.qdrep --force-overwrite true python3 -c \
  "import os; os.system(\"python3 run.py \
- --checkpoint facebook/opt-13b --compute-device cuda:0  \
+ --checkpoint facebook/opt-6.7b --compute-device cuda:0  \
  --prompt-len 64 --gen-len 2 \
  --gpu-batch-size 32 --num-gpu-batches 4 \
  --percent 20 30 0 25 100 0 \")"

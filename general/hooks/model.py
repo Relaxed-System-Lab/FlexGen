@@ -368,7 +368,7 @@ class ModelPrepare:
         load_path = os.path.join(self.offload_folder, actual_tensor_name + ".dat")
         np_memmap = np.memmap(load_path, dtype=dtype, shape=shape, mode="r")
         # np_memmap = np.lib.format.open_memmap(load_path, dtype=dtype, shape=shape, mode="r")
-        value = torch.from_numpy(np_memmap)
+        value = torch.from_numpy(np_memmap)#.pin_memory() # pin
         set_module_tensor_to_device(self.model, tensor_name, device, value)
 
     def _tensor_offload(self, tensor_name):
@@ -557,10 +557,14 @@ class ModelPolicyLoader(ModelPrepare):
             load_path = os.path.join(self.offload_folder, actual_tensor_name + ".dat")
             np_memmap = np.memmap(load_path, dtype=dtype, shape=shape, mode="r") # [:]
             # np_memmap = np.lib.format.open_memmap(load_path, dtype=dtype, shape=shape, mode="r") # [:]
-            value = torch.from_numpy(np_memmap)
+            value = torch.from_numpy(np_memmap).pin_memory()
         else:
             torch.cuda.nvtx.mark('from cpu')
             value = tensor
+        
+        # if not value.is_pinned:
+            # torch.cuda.nvtx.mark('pin')
+            # value = value.pin_memory()
 
         torch.cuda.nvtx.mark('to device')
         set_module_tensor_to_device(self.model, tensor_name, device, value)
