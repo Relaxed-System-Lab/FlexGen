@@ -12,48 +12,59 @@ import torch
 from flexgen.utils import GB, MB, KB
 
 
-def benchmark_func(func, number, repeat, warmup=3):
+def benchmark_func(func, number, repeat, warmup=0):
     for i in range(warmup):
         func()
 
-    costs = [0]
+    costs = []
 
     for i in range(repeat):
         torch.cuda.synchronize()
+        torch.cpu.synchronize()
         tic = time.time()
         for i in range(number):
-            func()
+            res = func()
         torch.cuda.synchronize()
+        torch.cpu.synchronize()
+        x = res
         costs.append((time.time() - tic) / number)
+        print(costs)
 
     return costs
 
 
 def profile_bandwidth(path):
-    s, h = 512, 512
+    s, h = 2048, 7183 # change s, h values and test again will eliminate the cache (?) and get a d2c about 3GB/s
     path_dir = os.path.dirname(path)
     os.makedirs(path_dir, exist_ok=True)
 
-    links = [("cpu", "gpu"), ("gpu", "cpu"), ("gpu", "gpu"), ("cpu", "cpu"),
-             ("cpu", "disk"), ("disk", "cpu")]
+    links = [
+        # ("cpu", "gpu"), ("gpu", "cpu"), ("gpu", "gpu"), ("cpu", "cpu"),
+             ("cpu", "disk"), 
+             ("disk", "cpu")
+            ]
 
     for (dst, src) in links:
-        for b in [1, 128, 512]:
+        for b in [1, 16, 32, 128, 512, ]:
             if dst == "cpu":
-                dst_tensor = torch.ones((b, s, h), dtype=torch.int8, pin_memory=True)
+                dst_tensor = torch.ones((b, s, h), dtype=torch.int8)#, pin_memory=True)
             elif dst == "gpu":
                 dst_tensor = torch.ones((b, s, h), dtype=torch.int8, device="cuda:0")
             elif dst == "disk":
-                np.lib.format.open_memmap(path, mode="w+", shape=((b,s,h)), dtype=np.int8)
-                dst_tensor = path
+                file_name = f"{path}-{b}-{s}-{h}"
+                if not os.path.exists(file_name):
+                    np.lib.format.open_memmap(file_name, mode="w+", shape=((b,s,h)), dtype=np.int8)
+                dst_tensor = file_name
 
             if src == "cpu":
-                src_tensor = torch.ones((b, s, h), dtype=torch.int8, pin_memory=True)
+                src_tensor = torch.ones((b, s, h), dtype=torch.int8)#, pin_memory=True)
             elif src == "gpu":
                 src_tensor = torch.ones((b, s, h), dtype=torch.int8, device="cuda:0")
             elif src == "disk":
-                np.lib.format.open_memmap(path, mode="w+", shape=((b,s,h)), dtype=np.int8)
-                src_tensor = path
+                file_name = f"{path}-{b}-{s}-{h}"
+                if not os.path.exists(file_name):
+                    np.lib.format.open_memmap(file_name, mode="w+", shape=((b,s,h)), dtype=np.int8)
+                src_tensor = file_name
 
             dst_indices = (slice(0, b), slice(0, s), slice(0, h))
             src_indices = (slice(0, b), slice(0, s), slice(0, h))
@@ -69,8 +80,14 @@ def profile_bandwidth(path):
                     dst_tensor_ = dst_tensor
                 dst_tensor_[dst_indices].copy_(src_tensor_[src_indices])
 
+                # cpu disk sync
+                return dst_tensor_.max()
+
+
+
+
             size = np.prod([(x.stop - x.start) / (x.step or 1) for x in dst_indices])
-            cost = np.mean(benchmark_func(func, number=5, repeat=3))
+            cost = np.mean(benchmark_func(func, number=1, repeat=1))
             bandwidth = size / cost / GB
 
             print(f"size: {size / MB:6.2f} MB, {src}-to-{dst} bandwidth: {bandwidth:.3f} GB/s")
@@ -79,7 +96,7 @@ def profile_bandwidth(path):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--offload-path", type=str, default="~/flexgen_offload_dir/tmp.npy")
+    parser.add_argument("--offload-path", type=str, default="~/flexgen_offload_dir/tmp")
     args = parser.parse_args()
 
     profile_bandwidth(os.path.expanduser(args.offload_path))
