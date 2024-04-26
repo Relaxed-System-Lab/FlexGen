@@ -12,11 +12,11 @@ import torch
 from flexgen.utils import GB, MB, KB
 
 
-def benchmark_func(func, number, repeat, warmup=3):
+def benchmark_func(func, number, repeat, warmup=0):
     for i in range(warmup):
         func()
 
-    costs = [0]
+    costs = []
 
     for i in range(repeat):
         torch.cuda.synchronize()
@@ -70,7 +70,7 @@ def profile_bandwidth(path):
                 dst_tensor_[dst_indices].copy_(src_tensor_[src_indices])
 
             size = np.prod([(x.stop - x.start) / (x.step or 1) for x in dst_indices])
-            cost = np.mean(benchmark_func(func, number=5, repeat=3))
+            cost = np.mean(benchmark_func(func, number=1, repeat=1))
             bandwidth = size / cost / GB
 
             print(f"size: {size / MB:6.2f} MB, {src}-to-{dst} bandwidth: {bandwidth:.3f} GB/s")
