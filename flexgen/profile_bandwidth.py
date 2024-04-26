@@ -34,7 +34,7 @@ def benchmark_func(func, number, repeat, warmup=0):
 
 
 def profile_bandwidth(path):
-    s, h = 2048, 7183 # change s, h values and test again will eliminate the cache (?) and get a d2c about 3GB/s
+    s, h = 2048, 7182 # change s, h values and test again will eliminate the cache (?) and get a d2c about 3GB/s
     path_dir = os.path.dirname(path)
     os.makedirs(path_dir, exist_ok=True)
 
@@ -47,7 +47,7 @@ def profile_bandwidth(path):
     for (dst, src) in links:
         for b in [1, 16, 32, 128, 512, ]:
             if dst == "cpu":
-                dst_tensor = torch.ones((b, s, h), dtype=torch.int8)#, pin_memory=True)
+                dst_tensor = torch.ones((b, s, h), dtype=torch.int8, pin_memory=True)
             elif dst == "gpu":
                 dst_tensor = torch.ones((b, s, h), dtype=torch.int8, device="cuda:0")
             elif dst == "disk":
@@ -57,7 +57,7 @@ def profile_bandwidth(path):
                 dst_tensor = file_name
 
             if src == "cpu":
-                src_tensor = torch.ones((b, s, h), dtype=torch.int8)#, pin_memory=True)
+                src_tensor = torch.ones((b, s, h), dtype=torch.int8, pin_memory=True)
             elif src == "gpu":
                 src_tensor = torch.ones((b, s, h), dtype=torch.int8, device="cuda:0")
             elif src == "disk":
