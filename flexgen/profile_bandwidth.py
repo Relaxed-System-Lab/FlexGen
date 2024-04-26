@@ -12,11 +12,11 @@ import torch
 from flexgen.utils import GB, MB, KB
 
 
-def benchmark_func(func, number, repeat, warmup=0): # warmup=0
-    for i in range(warmup): # ?
+def benchmark_func(func, number, repeat, warmup=3):
+    for i in range(warmup):
         func()
 
-    costs = []
+    costs = [0]
 
     for i in range(repeat):
         torch.cuda.synchronize()
@@ -25,24 +25,20 @@ def benchmark_func(func, number, repeat, warmup=0): # warmup=0
             func()
         torch.cuda.synchronize()
         costs.append((time.time() - tic) / number)
-        # print(costs)
 
     return costs
 
 
 def profile_bandwidth(path):
-    s, h = 2048, 7184 
+    s, h = 512, 512
     path_dir = os.path.dirname(path)
     os.makedirs(path_dir, exist_ok=True)
 
-    links = [
-        ("cpu", "gpu"), ("gpu", "cpu"), ("gpu", "gpu"), ("cpu", "cpu"),
-             ("cpu", "disk"), 
-             ("disk", "cpu")
-            ]
+    links = [("cpu", "gpu"), ("gpu", "cpu"), ("gpu", "gpu"), ("cpu", "cpu"),
+             ("cpu", "disk"), ("disk", "cpu")]
 
     for (dst, src) in links:
-        for b in [1, 16, 32, 128, 512, ]:
+        for b in [1, 128, 512]:
             if dst == "cpu":
                 dst_tensor = torch.ones((b, s, h), dtype=torch.int8, pin_memory=True)
             elif dst == "gpu":
@@ -73,9 +69,8 @@ def profile_bandwidth(path):
                     dst_tensor_ = dst_tensor
                 dst_tensor_[dst_indices].copy_(src_tensor_[src_indices])
 
-
             size = np.prod([(x.stop - x.start) / (x.step or 1) for x in dst_indices])
-            cost = np.mean(benchmark_func(func, number=1, repeat=1))
+            cost = np.mean(benchmark_func(func, number=5, repeat=3))
             bandwidth = size / cost / GB
 
             print(f"size: {size / MB:6.2f} MB, {src}-to-{dst} bandwidth: {bandwidth:.3f} GB/s")
