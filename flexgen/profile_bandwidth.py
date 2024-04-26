@@ -30,11 +30,11 @@ def benchmark_func(func, number, repeat, warmup=0):
 
 
 def profile_bandwidth(path):
-    s, h = 512, 512
+    s, h = 2048, 7184
     path_dir = os.path.dirname(path)
     os.makedirs(path_dir, exist_ok=True)
 
-    links = [("cpu", "gpu"), ("gpu", "cpu"), ("gpu", "gpu"), ("cpu", "cpu"),
+    links = [("cpu", "gpu"), ("gpu", "cpu"), #("gpu", "gpu"), ("cpu", "cpu"),
              ("cpu", "disk"), ("disk", "cpu")]
 
     for (dst, src) in links:
