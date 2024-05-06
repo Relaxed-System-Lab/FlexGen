@@ -44,3 +44,6 @@ flexgen/apps/data_wrangle/core
 
 # tmp scripts
 today_job.sh
+./profiling/bt.pt
+./profiling/bm.npy
+./profiling/bm2.npy
