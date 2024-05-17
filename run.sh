@@ -10,3 +10,5 @@ nsys profile -o flexgen.qdrep --force-overwrite true python -c \
  --percent 20 30 0 25 100 0 \")"
 
 watch -n 0.1 nvidia-smi
+
+find . -size +1M | sed 's|^\./||g' | cat > .gitignore 
