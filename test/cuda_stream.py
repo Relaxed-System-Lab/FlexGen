@@ -4,12 +4,9 @@ import torch.nn as nn
 import numpy as np
 from numpy.lib.format import open_memmap
 from threading import Thread
+from queue import Queue 
 
 device = torch.device(0)
-
-s1 = torch.cuda.Stream(device=device)
-s2 = torch.cuda.Stream(device=device)
-s3 = torch.cuda.Stream(device=1)
 
 b, s, h = 64, 2048, 4096 # bs >> h
 x1 = torch.rand(size=(b,s,h), pin_memory=True)
@@ -20,6 +17,35 @@ w1 = torch.rand(size=(h,h), pin_memory=True)
 w2 = torch.rand(size=(h,h), pin_memory=True)
 w3 = torch.rand(size=(h,h), pin_memory=True)
 w4 = torch.rand(size=(h,h//6), pin_memory=True)
+s1 = torch.cuda.Stream(device=device)
+s2 = torch.cuda.Stream(device=device)
+s3 = torch.cuda.Stream(device=1)
+
+# d2c task queue thread
+d2c_task_queue = Queue() 
+
+def d2c_func():
+    def process_task(file_name):
+        torch.cuda.nvtx.range_push(f'd2c-{file_name}')
+        x4_mmap = torch.from_numpy(np.lib.format.open_memmap(file_name))
+        x4.copy_(x4_mmap)
+        torch.cuda.nvtx.range_pop() 
+
+    while True:
+        task = d2c_task_queue.get()  
+
+        if task == 'q':
+            d2c_task_queue.task_done()
+            break 
+
+        process_task(task)
+        d2c_task_queue.task_done()
+
+
+
+d2c_thread = Thread(target=d2c_func) 
+d2c_thread.start()
+
 
 iters = 10
 
@@ -51,18 +77,21 @@ def run(iters=iters):
         torch.cuda.nvtx.range_push('iter{}'.format(i))
 
         # d2c thread
-        def d2c():
-            torch.cuda.nvtx.range_push(f'd2c-{i}')
-            x4_mmap = torch.from_numpy(np.lib.format.open_memmap(f'x4-{i}'))
-            w4_mmap = torch.from_numpy(np.lib.format.open_memmap(f'w4-{i}'))
-            x4.copy_(x4_mmap)
-            w4.copy_(w4_mmap)
-            # x4.copy_(x4_mmap, non_blocking=True)
-            # w4.copy_(w4_mmap, non_blocking=True)
-            torch.cuda.nvtx.range_pop()
+        # def d2c():
+        #     torch.cuda.nvtx.range_push(f'd2c-{i}')
+        #     x4_mmap = torch.from_numpy(np.lib.format.open_memmap(f'x4-{i}'))
+        #     w4_mmap = torch.from_numpy(np.lib.format.open_memmap(f'w4-{i}'))
+        #     x4.copy_(x4_mmap)
+        #     w4.copy_(w4_mmap)
+        #     # x4.copy_(x4_mmap, non_blocking=True)
+        #     # w4.copy_(w4_mmap, non_blocking=True)
+        #     torch.cuda.nvtx.range_pop()
 
-        thread = Thread(target=d2c) 
-        thread.start()
+        # thread = Thread(target=d2c) 
+        # thread.start()
+        # d2c()
+        d2c_task_queue.put(f'x4-{i}')
+        # d2c_task_queue.put(f'w4-{i}')
 
         with torch.cuda.stream(s1):
             x1 @ w1
@@ -77,9 +106,14 @@ def run(iters=iters):
             w3_gpu.copy_(w3, non_blocking=True)
 
         torch.cuda.synchronize()
-        thread.join()
+        # thread.join()
 
         torch.cuda.nvtx.range_pop()
+    
+    d2c_task_queue.put('q') 
+    d2c_thread.join()
+    d2c_task_queue.join()
+    
         
 
 if __name__=='__main__':
