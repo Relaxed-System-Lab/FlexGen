@@ -9,3 +9,5 @@ MKL_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1  nsys profile -w true
 
 
 # --sample --cpuctxsw --event-sample --backtrace --cpu-core-events --event-sampling-frequency --os-events --samples-per-backtrace --sampling-period
+
+ps -ef | grep dingfangyu | grep python | grep -v grep | awk '{print $2}' | xargs kill -9
