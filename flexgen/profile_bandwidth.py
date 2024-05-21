@@ -17,7 +17,7 @@ def benchmark_func(func, number, repeat, warmup=3):
     for i in range(warmup):
         func()
 
-    costs = [0]
+    costs = []
 
     for i in range(repeat):
         torch.cuda.synchronize()
@@ -36,7 +36,7 @@ def profile_bandwidth(path):
     os.makedirs(path_dir, exist_ok=True)
 
     links = [("cpu", "gpu"), ("gpu", "cpu"), ("gpu", "gpu"), ("cpu", "cpu"),
-             ("cpu", "np.memmap"), ("np.memmap", "cpu"), ("cpu", "safetensors"), ("safetensors", "cpu")]
+             ("cpu", "np.memmap"), ("cpu", "safetensors"), ("np.memmap", "cpu"), ("safetensors", "cpu")]
 
     for (dst, src) in links:
         for b in [1, 128, 512]:
