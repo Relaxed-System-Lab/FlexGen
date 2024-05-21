@@ -99,7 +99,7 @@ w3_gpu = w3.to(1)
 x5_gpu = x5.to(device)
 
 # sudo sh -c 'echo 3 >  /proc/sys/vm/drop_caches'
-os.system('sudo -S sh -c \'echo 3 >  /proc/sys/vm/drop_caches\'')
+# os.system('sudo -S sh -c \'echo 3 >  /proc/sys/vm/drop_caches\'')
 
 
 
