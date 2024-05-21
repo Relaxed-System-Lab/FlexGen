@@ -34,4 +34,4 @@ sudo sh -c 'echo 3 >  /proc/sys/vm/drop_caches'
 sudo cp *.so /usr/local/lib/
 sudo cp *.sh /usr/local/bin/
 
-pagecache-management.sh `nsys profile -w true -t cuda,nvtx,osrt,cudnn,cublas -s cpu -o nsight_report6 -f true -x true python cuda_stream.py | cat >>/dev/null`
+pagecache-management.sh -m 0 nsys profile -w true -t cuda,nvtx,osrt,cudnn,cublas -s cpu -o nsight_report6 -f true -x true python cuda_stream.py 

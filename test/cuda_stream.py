@@ -7,15 +7,16 @@ from numpy.lib.format import open_memmap
 from threading import Thread
 from queue import Queue 
 
-device = torch.device(6)
+device = torch.device(7)
+device2 = torch.device(6)
 
-b, s, h = 32, 2048, 4096 # bs >> h
+b, s, h = 8, 2048, 4096 # bs >> h
 x1 = torch.rand(size=(b,s,h), pin_memory=True)
 x2 = torch.rand(size=(b,s,h), pin_memory=True)
 x3 = torch.rand(size=(b,s,h), pin_memory=True)
 x4 = torch.rand(size=(b,s//6,h), pin_memory=True)
 x5 = torch.rand(size=(b,s,h), pin_memory=True)
-x6 = torch.rand(size=(b,s//12,h), pin_memory=True)
+x6 = torch.rand(size=(b,s//20,h), pin_memory=True)
 w1 = torch.rand(size=(h,h), pin_memory=True)
 w2 = torch.rand(size=(h,h), pin_memory=True)
 w3 = torch.rand(size=(h,h), pin_memory=True)
@@ -23,7 +24,7 @@ w4 = torch.rand(size=(h,h//6), pin_memory=True)
 
 s1 = torch.cuda.Stream(device=device) # comp
 s2 = torch.cuda.Stream(device=device) # c2g
-s3 = torch.cuda.Stream(device=7)      # c2g'
+s3 = torch.cuda.Stream(device=device2)# c2g'
 s5 = torch.cuda.Stream(device=device) # g2c
 
 # d2c task queue thread
@@ -91,10 +92,10 @@ for i in range(iters):
 
 x1 = x1.to(device)
 x2_gpu = x2.to(device)
-x3_gpu = x3.to(7)
+x3_gpu = x3.to(device2)
 w1 = w1.to(device)
 w2_gpu = w2.to(device)
-w3_gpu = w3.to(7)
+w3_gpu = w3.to(device2)
 
 x5_gpu = x5.to(device)
 
@@ -129,8 +130,9 @@ def run(iters=iters, warmup=3):
                 x5.copy_(x5_gpu)
 
             d2c_task_queue.join()
-            c2d_task_queue.join()
-            torch.cuda.synchronize()
+            # c2d_task_queue.join()
+            torch.cuda.synchronize(device)
+            torch.cuda.synchronize(device2)
 
             torch.cuda.nvtx.range_pop()
         
