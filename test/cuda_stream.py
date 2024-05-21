@@ -7,10 +7,10 @@ from numpy.lib.format import open_memmap
 from threading import Thread
 from queue import Queue 
 
-device = torch.device(7)
-device2 = torch.device(6)
+device = torch.device(0)
+device2 = torch.device(1)
 
-b, s, h = 8, 2048, 4096 # bs >> h
+b, s, h = 64, 2048, 4096 # bs >> h
 x1 = torch.rand(size=(b,s,h), pin_memory=True)
 x2 = torch.rand(size=(b,s,h), pin_memory=True)
 x3 = torch.rand(size=(b,s,h), pin_memory=True)
@@ -100,7 +100,7 @@ w3_gpu = w3.to(device2)
 x5_gpu = x5.to(device)
 
 # sudo sh -c 'echo 3 >  /proc/sys/vm/drop_caches'
-# os.system('sudo -S sh -c \'echo 3 >  /proc/sys/vm/drop_caches\'')
+os.system('sudo -S sh -c \'echo 3 >  /proc/sys/vm/drop_caches\'')
 
 
 
@@ -130,7 +130,7 @@ def run(iters=iters, warmup=3):
                 x5.copy_(x5_gpu)
 
             d2c_task_queue.join()
-            # c2d_task_queue.join()
+            c2d_task_queue.join()
             torch.cuda.synchronize(device)
             torch.cuda.synchronize(device2)
 
