@@ -7,9 +7,9 @@ from numpy.lib.format import open_memmap
 from threading import Thread
 from queue import Queue 
 
-device = torch.device(0)
+device = torch.device(6)
 
-b, s, h = 64, 2048, 4096 # bs >> h
+b, s, h = 32, 2048, 4096 # bs >> h
 x1 = torch.rand(size=(b,s,h), pin_memory=True)
 x2 = torch.rand(size=(b,s,h), pin_memory=True)
 x3 = torch.rand(size=(b,s,h), pin_memory=True)
@@ -23,7 +23,7 @@ w4 = torch.rand(size=(h,h//6), pin_memory=True)
 
 s1 = torch.cuda.Stream(device=device) # comp
 s2 = torch.cuda.Stream(device=device) # c2g
-s3 = torch.cuda.Stream(device=1)      # c2g'
+s3 = torch.cuda.Stream(device=7)      # c2g'
 s5 = torch.cuda.Stream(device=device) # g2c
 
 # d2c task queue thread
@@ -32,7 +32,7 @@ d2c_task_queue = Queue()
 def d2c_func():
     def process_task(file_name):
         torch.cuda.nvtx.range_push(f'd2c-{file_name}')
-        x4_mmap = torch.from_numpy(np.lib.format.open_memmap(file_name))
+        x4_mmap = torch.from_numpy(open_memmap(file_name))
         x4.copy_(x4_mmap)
         torch.cuda.nvtx.range_pop() 
 
@@ -91,10 +91,10 @@ for i in range(iters):
 
 x1 = x1.to(device)
 x2_gpu = x2.to(device)
-x3_gpu = x3.to(1)
+x3_gpu = x3.to(7)
 w1 = w1.to(device)
 w2_gpu = w2.to(device)
-w3_gpu = w3.to(1)
+w3_gpu = w3.to(7)
 
 x5_gpu = x5.to(device)
 
@@ -105,35 +105,35 @@ x5_gpu = x5.to(device)
 
 
 
-def run(iters=iters):
+def run(iters=iters, warmup=3):
+    for w in range(warmup + 1):
+        for i in range(iters):
+            torch.cuda.nvtx.range_push('iter{}'.format(i))
 
-    for i in range(iters):
-        torch.cuda.nvtx.range_push('iter{}'.format(i))
+            d2c_task_queue.put(f'x4-{i}')
+            c2d_task_queue.put(f'x4-{(i - 2) % iters}') # store prev
 
-        d2c_task_queue.put(f'x4-{i}')
-        c2d_task_queue.put(f'x4-{(i - 2) % iters}') # store prev
+            with torch.cuda.stream(s1):
+                x1 @ w1
+                x2_gpu @ w2_gpu
+        
+            with torch.cuda.stream(s2): 
+                x2_gpu.copy_(x2, non_blocking=True)
+                w2_gpu.copy_(w2, non_blocking=True)
 
-        with torch.cuda.stream(s1):
-            x1 @ w1
-            x2_gpu @ w2_gpu
-    
-        with torch.cuda.stream(s2): 
-            x2_gpu.copy_(x2, non_blocking=True)
-            w2_gpu.copy_(w2, non_blocking=True)
+            with torch.cuda.stream(s3): # another gpu
+                x3_gpu.copy_(x3, non_blocking=True)
+                w3_gpu.copy_(w3, non_blocking=True)
 
-        with torch.cuda.stream(s3): # another gpu
-            x3_gpu.copy_(x3, non_blocking=True)
-            w3_gpu.copy_(w3, non_blocking=True)
+            with torch.cuda.stream(s5):
+                x5.copy_(x5_gpu)
 
-        with torch.cuda.stream(s5):
-            x5.copy_(x5_gpu)
+            d2c_task_queue.join()
+            c2d_task_queue.join()
+            torch.cuda.synchronize()
 
-        d2c_task_queue.join()
-        c2d_task_queue.join()
-        torch.cuda.synchronize()
-
-        torch.cuda.nvtx.range_pop()
-    
+            torch.cuda.nvtx.range_pop()
+        
     d2c_task_queue.put('q') 
     d2c_thread.join()
 
