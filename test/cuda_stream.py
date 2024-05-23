@@ -16,7 +16,7 @@ x2 = torch.rand(size=(b,s,h), pin_memory=True)
 x3 = torch.rand(size=(b,s,h), pin_memory=True)
 x4 = torch.rand(size=(b,s//6,h), pin_memory=True)
 x5 = torch.rand(size=(b,s,h), pin_memory=True)
-x6 = torch.rand(size=(b,s//20,h), pin_memory=True)
+x6 = torch.rand(size=(b,s//50,h), pin_memory=True)
 w1 = torch.rand(size=(h,h), pin_memory=True)
 w2 = torch.rand(size=(h,h), pin_memory=True)
 w3 = torch.rand(size=(h,h), pin_memory=True)
@@ -41,11 +41,10 @@ def d2c_func():
         task = d2c_task_queue.get()  
 
         if task == 'q':
-            d2c_task_queue.task_done()
             break 
-        else:
-            process_task(task)
-            d2c_task_queue.task_done()
+        
+        process_task(task)
+        d2c_task_queue.task_done()
 
 
 
@@ -59,20 +58,20 @@ c2d_task_queue = Queue()
 def c2d_func():
     def process_task(file_name):
         torch.cuda.nvtx.range_push(f'c2d-{file_name}')
-        mmap = torch.from_numpy(np.lib.format.open_memmap(file_name))
+        np_memmap = np.lib.format.open_memmap(file_name)
+        mmap = torch.from_numpy(np_memmap)
         indices = tuple(slice(0, i) for i in x6.shape)
         mmap[indices].copy_(x6) # d.copy_(c)
+        del np_memmap, mmap
         torch.cuda.nvtx.range_pop() 
 
     while True:
         task = c2d_task_queue.get()  
 
         if task == 'q':
-            c2d_task_queue.task_done()
-            break 
-        else:
-            process_task(task)
-            c2d_task_queue.task_done()
+            break
+        process_task(task)
+        c2d_task_queue.task_done()
 
 
 
@@ -100,7 +99,7 @@ w3_gpu = w3.to(device2)
 x5_gpu = x5.to(device)
 
 # sudo sh -c 'echo 3 >  /proc/sys/vm/drop_caches'
-os.system('sudo -S sh -c \'echo 3 >  /proc/sys/vm/drop_caches\'')
+# os.system('sudo -S sh -c \'echo 3 >  /proc/sys/vm/drop_caches\'')
 
 
 
@@ -129,8 +128,9 @@ def run(iters=iters, warmup=3):
             with torch.cuda.stream(s5):
                 x5.copy_(x5_gpu)
 
-            d2c_task_queue.join()
-            c2d_task_queue.join()
+            d2c_task_queue.join() # ?
+            c2d_task_queue.join() # ?
+            torch.cuda.synchronize()
             torch.cuda.synchronize(device)
             torch.cuda.synchronize(device2)
 
