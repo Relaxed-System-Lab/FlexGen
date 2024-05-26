@@ -14,13 +14,13 @@ b, s, h = 64, 2048, 4096 # bs >> h
 x1 = torch.rand(size=(b,s,h), pin_memory=True)
 x2 = torch.rand(size=(b,s,h), pin_memory=True)
 x3 = torch.rand(size=(b,s,h), pin_memory=True)
-x4 = torch.rand(size=(b,s//6,h), pin_memory=True)
+x4 = torch.rand(size=(b,s//3,h), pin_memory=True)
 x5 = torch.rand(size=(b,s,h), pin_memory=True)
-x6 = torch.rand(size=(b,s//50,h), pin_memory=True)
+x6 = torch.rand(size=(b,1,h), pin_memory=True)
 w1 = torch.rand(size=(h,h), pin_memory=True)
 w2 = torch.rand(size=(h,h), pin_memory=True)
 w3 = torch.rand(size=(h,h), pin_memory=True)
-w4 = torch.rand(size=(h,h//6), pin_memory=True)
+w4 = torch.rand(size=(h,h//3), pin_memory=True)
 
 s1 = torch.cuda.Stream(device=device) # comp
 s2 = torch.cuda.Stream(device=device) # c2g
@@ -33,13 +33,16 @@ d2c_task_queue = Queue()
 def d2c_func():
     def process_task(file_name):
         torch.cuda.nvtx.range_push(f'd2c-{file_name}')
+        torch.cuda.nvtx.range_push(f'1')
         x4_mmap = torch.from_numpy(open_memmap(file_name))
+        torch.cuda.nvtx.range_pop() 
+        torch.cuda.nvtx.range_push(f'2')
         x4.copy_(x4_mmap)
+        torch.cuda.nvtx.range_pop() 
         torch.cuda.nvtx.range_pop() 
 
     while True:
         task = d2c_task_queue.get()  
-
         if task == 'q':
             break 
         
@@ -58,18 +61,32 @@ c2d_task_queue = Queue()
 def c2d_func():
     def process_task(file_name):
         torch.cuda.nvtx.range_push(f'c2d-{file_name}')
-        np_memmap = np.lib.format.open_memmap(file_name)
+
+        torch.cuda.nvtx.range_push(f'1')
+        np_memmap = np.lib.format.open_memmap(file_name)  # 
         mmap = torch.from_numpy(np_memmap)
         indices = tuple(slice(0, i) for i in x6.shape)
+        torch.cuda.nvtx.range_pop() 
+
+        torch.cuda.nvtx.range_push(f'2')
         mmap[indices].copy_(x6) # d.copy_(c)
+        torch.cuda.nvtx.range_pop() 
+
+        torch.cuda.nvtx.range_push(f'3')
+        # np_memmap._mmap.close()
+        np_memmap.flush() #
+        torch.cuda.nvtx.range_pop() 
+
+        torch.cuda.nvtx.range_push(f'4')
         del np_memmap, mmap
+        torch.cuda.nvtx.range_pop() 
         torch.cuda.nvtx.range_pop() 
 
     while True:
         task = c2d_task_queue.get()  
-
         if task == 'q':
             break
+
         process_task(task)
         c2d_task_queue.task_done()
 
@@ -79,15 +96,17 @@ c2d_thread = Thread(target=c2d_func)
 c2d_thread.start()
 
 
-iters = 10
+iters = 8
 
 import os 
 
 np_x4 = x4.detach().numpy()
 np_w4 = w4.detach().numpy()
+rewrite = True
 for i in range(iters):
-    open_memmap(f'x4-{i}', mode="w+", shape=np_x4.shape, dtype=np_x4.dtype)
-    open_memmap(f'w4-{i}', mode="w+", shape=np_w4.shape, dtype=np_w4.dtype)
+    if not os.path.exists(f'x4-{i}') or not os.path.exists(f'w4-{i}') or rewrite:
+        open_memmap(f'x4-{i}', mode="w+", shape=np_x4.shape, dtype=np_x4.dtype)
+        open_memmap(f'w4-{i}', mode="w+", shape=np_w4.shape, dtype=np_w4.dtype)
 
 x1 = x1.to(device)
 x2_gpu = x2.to(device)
@@ -110,8 +129,8 @@ def run(iters=iters, warmup=3):
         for i in range(iters):
             torch.cuda.nvtx.range_push('iter{}'.format(i))
 
-            d2c_task_queue.put(f'x4-{i}')
-            c2d_task_queue.put(f'x4-{(i - 2) % iters}') # store prev
+            d2c_task_queue.put(f'x4-{(i) % iters}')
+            c2d_task_queue.put(f'x4-{(i - 4) % iters}') # store prev
 
             with torch.cuda.stream(s1):
                 x1 @ w1
@@ -128,8 +147,8 @@ def run(iters=iters, warmup=3):
             with torch.cuda.stream(s5):
                 x5.copy_(x5_gpu)
 
-            d2c_task_queue.join() # ?
-            c2d_task_queue.join() # ?
+            d2c_task_queue.join() 
+            c2d_task_queue.join() 
             torch.cuda.synchronize()
             torch.cuda.synchronize(device)
             torch.cuda.synchronize(device2)

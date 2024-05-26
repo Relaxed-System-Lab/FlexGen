@@ -898,7 +898,7 @@ def copy_worker_func(queue, cuda_id):
                 # Use a pinned cpu buffer as a relay
                 size = np.prod(src_data.shape)
                 tmp_cpu_buf = cpu_buf[:size].view(src_data.shape)
-                tmp_cpu_buf.copy_(src_data)
+                tmp_cpu_buf.copy_(src_data) # ?
                 dst_data.copy_(tmp_cpu_buf)
             else:
                 dst_data.copy_(src_data)

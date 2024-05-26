@@ -16,7 +16,7 @@ nsys profile -w true -t cuda,nvtx,osrt,cudnn,cublas --stats=true -s cpu -o nsigh
 MKL_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1  nsys profile -w true -t cuda,nvtx,osrt,cudnn,cublas --stats=true -s cpu -o nvtx_cpu -f true -x true python nvtx_cpu.py
 
 
-ps -ef | grep dingfangyu | grep python | grep -v grep | awk '{print $2}' | xargs kill -9
+ps -ef | grep dingfangyu | grep 'miniconda3/bin/python' | grep -v grep | awk '{print $2}' | xargs kill -9
 
 
 sudo hdparm -tT --direct /dev/nvme0n1p2
@@ -34,4 +34,4 @@ sudo sh -c 'echo 3 >  /proc/sys/vm/drop_caches'
 sudo cp *.so /usr/local/lib/
 sudo cp *.sh /usr/local/bin/
 
-pagecache-management.sh nsys profile -w true -t cuda,nvtx,osrt,cudnn,cublas -s cpu -o nsight_report10 -f true -x true python cuda_stream.py 
+pagecache-management.sh nsys profile -w true -t cuda,nvtx,osrt,cudnn,cublas -s cpu -o nsight_report12 -f true -x true python cuda_stream.py 
