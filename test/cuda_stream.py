@@ -18,6 +18,7 @@ x4 = torch.rand(size=(b,s//3,h), pin_memory=True)
 x5 = torch.rand(size=(b,s,h), pin_memory=True)
 x6 = torch.rand(size=(b,1,h), pin_memory=True)
 x7 = torch.rand(size=(b,s,h), pin_memory=True)
+x8 = torch.rand(size=(b,s,h), pin_memory=True)
 w1 = torch.rand(size=(h,h), pin_memory=True)
 w2 = torch.rand(size=(h,h), pin_memory=True)
 w3 = torch.rand(size=(h,h), pin_memory=True)
@@ -106,12 +107,13 @@ np_x4 = x4.detach().numpy()
 np_w4 = w4.detach().numpy()
 rewrite = True
 for i in range(iters):
-    if not os.path.exists(f'x4-{i}') or not os.path.exists(f'w4-{i}') or rewrite:
-        open_memmap(f'x4-{i}', mode="w+", shape=np_x4.shape, dtype=np_x4.dtype)
-        open_memmap(f'w4-{i}', mode="w+", shape=np_w4.shape, dtype=np_w4.dtype)
+    if not os.path.exists(f'mmap/x4-{i}') or not os.path.exists(f'mmap/w4-{i}') or rewrite:
+        open_memmap(f'mmap/x4-{i}', mode="w+", shape=np_x4.shape, dtype=np_x4.dtype)
+        open_memmap(f'mmap/w4-{i}', mode="w+", shape=np_w4.shape, dtype=np_w4.dtype)
 
 x1 = x1.to(device)
 x7 = x7.to(device)
+x8 = x8.to(device)
 
 x2_gpu = x2.to(device)
 x3_gpu = x3.to(device2)
@@ -134,13 +136,13 @@ def run(iters=iters, warmup=3):
         for i in range(iters):
             torch.cuda.nvtx.range_push('iter{}'.format(i))
 
-            d2c_task_queue.put(f'x4-{(i) % iters}') # d2c
-            c2d_task_queue.put(f'x4-{(i - 4) % iters}') # c2d
+            d2c_task_queue.put(f'mmap/x4-{(i) % iters}') # d2c
+            c2d_task_queue.put(f'mmap/x4-{(i - 4) % iters}') # c2d
 
 
-            with torch.cuda.stream(s7): # g2g
+            with torch.cuda.stream(s7): # g2g, races with comp (yes)
                 for _ in range(10):
-                    x7.copy_(x1)
+                    x7.copy_(x8)
 
             with torch.cuda.stream(s1): # comp
                 x1 @ w1
@@ -150,7 +152,7 @@ def run(iters=iters, warmup=3):
                 x2_gpu.copy_(x2, non_blocking=True)
                 w2_gpu.copy_(w2, non_blocking=True)
 
-            with torch.cuda.stream(s3): # c2 another g
+            with torch.cuda.stream(s3): # c2g'
                 x3_gpu.copy_(x3, non_blocking=True)
                 w3_gpu.copy_(w3, non_blocking=True)
 
