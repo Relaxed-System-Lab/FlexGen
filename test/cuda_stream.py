@@ -17,6 +17,7 @@ x3 = torch.rand(size=(b,s,h), pin_memory=True)
 x4 = torch.rand(size=(b,s//3,h), pin_memory=True)
 x5 = torch.rand(size=(b,s,h), pin_memory=True)
 x6 = torch.rand(size=(b,1,h), pin_memory=True)
+x7 = torch.rand(size=(b,s,h), pin_memory=True)
 w1 = torch.rand(size=(h,h), pin_memory=True)
 w2 = torch.rand(size=(h,h), pin_memory=True)
 w3 = torch.rand(size=(h,h), pin_memory=True)
@@ -26,6 +27,7 @@ s1 = torch.cuda.Stream(device=device) # comp
 s2 = torch.cuda.Stream(device=device) # c2g
 s3 = torch.cuda.Stream(device=device2)# c2g'
 s5 = torch.cuda.Stream(device=device) # g2c
+s7 = torch.cuda.Stream(device=device) # g2g
 
 # d2c task queue thread
 d2c_task_queue = Queue()              
@@ -72,14 +74,14 @@ def c2d_func():
         mmap[indices].copy_(x6) # d.copy_(c)
         torch.cuda.nvtx.range_pop() 
 
-        torch.cuda.nvtx.range_push(f'3')
-        # np_memmap._mmap.close()
-        np_memmap.flush() #
-        torch.cuda.nvtx.range_pop() 
+        # torch.cuda.nvtx.range_push(f'3')
+        # # np_memmap._mmap.close()
+        # np_memmap.flush() #
+        # torch.cuda.nvtx.range_pop() 
 
-        torch.cuda.nvtx.range_push(f'4')
-        del np_memmap, mmap
-        torch.cuda.nvtx.range_pop() 
+        # torch.cuda.nvtx.range_push(f'4')
+        # del np_memmap, mmap
+        # torch.cuda.nvtx.range_pop() 
         torch.cuda.nvtx.range_pop() 
 
     while True:
@@ -109,6 +111,8 @@ for i in range(iters):
         open_memmap(f'w4-{i}', mode="w+", shape=np_w4.shape, dtype=np_w4.dtype)
 
 x1 = x1.to(device)
+x7 = x7.to(device)
+
 x2_gpu = x2.to(device)
 x3_gpu = x3.to(device2)
 w1 = w1.to(device)
@@ -116,6 +120,7 @@ w2_gpu = w2.to(device)
 w3_gpu = w3.to(device2)
 
 x5_gpu = x5.to(device)
+
 
 # sudo sh -c 'echo 3 >  /proc/sys/vm/drop_caches'
 # os.system('sudo -S sh -c \'echo 3 >  /proc/sys/vm/drop_caches\'')
@@ -129,23 +134,29 @@ def run(iters=iters, warmup=3):
         for i in range(iters):
             torch.cuda.nvtx.range_push('iter{}'.format(i))
 
-            d2c_task_queue.put(f'x4-{(i) % iters}')
-            c2d_task_queue.put(f'x4-{(i - 4) % iters}') # store prev
+            d2c_task_queue.put(f'x4-{(i) % iters}') # d2c
+            c2d_task_queue.put(f'x4-{(i - 4) % iters}') # c2d
 
-            with torch.cuda.stream(s1):
+
+            with torch.cuda.stream(s7): # g2g
+                for _ in range(10):
+                    x7.copy_(x1)
+
+            with torch.cuda.stream(s1): # comp
                 x1 @ w1
                 x2_gpu @ w2_gpu
         
-            with torch.cuda.stream(s2): 
+            with torch.cuda.stream(s2): # c2g
                 x2_gpu.copy_(x2, non_blocking=True)
                 w2_gpu.copy_(w2, non_blocking=True)
 
-            with torch.cuda.stream(s3): # another gpu
+            with torch.cuda.stream(s3): # c2 another g
                 x3_gpu.copy_(x3, non_blocking=True)
                 w3_gpu.copy_(w3, non_blocking=True)
 
-            with torch.cuda.stream(s5):
+            with torch.cuda.stream(s5): # g2c
                 x5.copy_(x5_gpu)
+
 
             d2c_task_queue.join() 
             c2d_task_queue.join() 
