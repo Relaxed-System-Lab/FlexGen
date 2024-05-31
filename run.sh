@@ -12,3 +12,5 @@ nsys profile -o flexgen.qdrep --force-overwrite true python -c \
 watch -n 0.1 nvidia-smi
 
 find . -size +1M | sed 's|^\./||g' | cat > .gitignore 
+
+git add . && git commit -m 'info' && git push
