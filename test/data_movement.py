@@ -11,7 +11,33 @@ from queue import Queue
 from dataclasses import dataclass
 
 
-# project name: 
+@dataclass
+class D2C:
+    d_file_name: str
+    d_indices: None 
+    c_tensor: None 
+    c_indices: None 
+
+C2D = D2C 
+
+@dataclass
+class G2C:
+    g_tensor: None
+    g_indices: None
+    c_tensor: None
+    c_indices: None
+
+C2G = G2C
+
+@dataclass(frozen=True)
+class Task:
+    C2D = C2D
+    D2C = D2C
+    G2C = G2C
+    C2G = C2G 
+
+
+
 class Engine:
     """asynchronously copy data between GPU/CPU & CPU/Disk"""
     def __init__(self, comp_device, single_device=True) -> None:
@@ -37,7 +63,19 @@ class Engine:
         self.d2c_thread.start()
         self.c2d_thread.start()
 
-    # TODO: submit g2c, c2g tasks
+    def sync(self) -> None:
+        self.d2c_queue.join()
+        self.c2d_queue.join()
+        self.g2c_stream.synchronize()
+        self.c2g_stream.synchronize()
+
+    def submit_c2g_task(self, task: C2G):
+        with torch.cuda.stream(self.c2g_stream):
+            task.g_tensor[task.g_indices].copy_(task.c_tensor[task.c_indices])
+
+    def submit_g2c_task(self, task: C2G):
+        with torch.cuda.stream(self.g2c_stream):
+            task.c_tensor[task.c_indices].copy_(task.g_tensor[task.g_indices])
 
     def submit_d2c_task(self, task):
         self.d2c_queue.put(task)
@@ -103,28 +141,3 @@ class Engine:
     def __del__(self):
         self.close()
 
-
-@dataclass
-class D2C:
-    d_file_name: str
-    d_indices: None 
-    c_tensor: None 
-    c_indices: None 
-
-C2D = D2C 
-
-@dataclass
-class G2C:
-    g_tensor: None
-    g_indices: None
-    c_tensor: None
-    c_indices: None
-
-C2G = G2C
-
-@dataclass(frozen=True)
-class Task:
-    C2D = C2D
-    D2C = D2C
-    G2C = G2C
-    C2G = C2G 
