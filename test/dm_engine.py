@@ -47,14 +47,13 @@ class DataMovementEngine:
         self.c2d_queue.put(task)
 
     def d2c_runtime(self):
-        def process_task(task):
-            d_file_name, d_indices, c_tensor, c_indices = task
-            torch.cuda.nvtx.range_push(f'd2c-{d_file_name}')
+        def process_task(task: TaskD2C):
+            torch.cuda.nvtx.range_push(f'd2c-{task.d_file_name}')
             torch.cuda.nvtx.range_push(f'1')
-            d_tensor = torch.from_numpy(open_memmap(d_file_name))
+            d_tensor = torch.from_numpy(open_memmap(task.d_file_name))
             torch.cuda.nvtx.range_pop() 
             torch.cuda.nvtx.range_push(f'2')
-            c_tensor[c_indices].copy_(d_tensor[d_indices])
+            task.c_tensor[task.c_indices].copy_(d_tensor[task.d_indices])
             torch.cuda.nvtx.range_pop() 
             torch.cuda.nvtx.range_pop() 
 
@@ -66,17 +65,16 @@ class DataMovementEngine:
             self.d2c_queue.task_done()
 
     def c2d_runtime(self):
-        def process_task(task):
-            c_tensor, c_indices, d_file_name, d_indices = task
-            torch.cuda.nvtx.range_push(f'c2d-{d_file_name}')
+        def process_task(task: TaskC2D):
+            torch.cuda.nvtx.range_push(f'c2d-{task.d_file_name}')
 
             torch.cuda.nvtx.range_push(f'1')
-            np_memmap = np.lib.format.open_memmap(d_file_name)
+            np_memmap = np.lib.format.open_memmap(task.d_file_name)
             d_tensor = torch.from_numpy(np_memmap)
             torch.cuda.nvtx.range_pop() 
 
             torch.cuda.nvtx.range_push(f'2')
-            d_tensor[d_indices].copy_(c_tensor[c_indices]) 
+            d_tensor[task.d_indices].copy_(task.c_tensor[task.c_indices]) 
             torch.cuda.nvtx.range_pop() 
 
             torch.cuda.nvtx.range_push(f'3')
