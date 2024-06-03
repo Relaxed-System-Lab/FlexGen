@@ -36,6 +36,8 @@ class DataMovementEngine:
         self.d2c_thread.start()
         self.c2d_thread.start()
 
+    # TODO: submit g2c, c2g tasks
+
     def submit_d2c_task(self, task):
         self.d2c_queue.put(task)
 

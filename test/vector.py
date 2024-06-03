@@ -104,7 +104,9 @@ class Vector:
     def __repr__(self) -> str:
         return f"{self.storage}"
 
-if __name__ == '__main__':
+if __name__ == '__main__': 
+    # test 
+    
     dev = 0
 
     t = torch.tensor([1,2,3]).to(dev)
