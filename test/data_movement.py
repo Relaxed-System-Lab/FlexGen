@@ -103,21 +103,22 @@ class Engine:
     def __del__(self):
         self.close()
 
+
 @dataclass
 class D2C:
-    d_file_name = None
-    d_indices = None 
-    c_tensor = None
-    c_indices = None
+    d_file_name: str
+    d_indices: None 
+    c_tensor: None 
+    c_indices: None 
 
 C2D = D2C 
 
 @dataclass
 class G2C:
-    g_tensor = None
-    g_indices = None
-    c_tensor = None
-    c_indices = None
+    g_tensor: None
+    g_indices: None
+    c_tensor: None
+    c_indices: None
 
 C2G = G2C
 
