@@ -12,18 +12,17 @@ from dataclasses import dataclass
 
 
 # project name: 
-class DataMovementEngine:
+class Engine:
     """asynchronously copy data between GPU/CPU & CPU/Disk"""
-    def __init__(self, comp_device, single_device=True, debug_mode=True) -> None:
+    def __init__(self, comp_device, single_device=True) -> None:
         
         assert torch.cuda.is_available() 
 
-        self.comp_device = comp_device
         self.single_device = single_device
-        self.debug_mode = debug_mode
         
         # task streams
         if self.single_device:
+            self.comp_device = comp_device
             self.comp_stream = torch.cuda.Stream(self.comp_device)
             self.c2g_stream = torch.cuda.Stream(self.comp_device)
             self.g2c_stream = torch.cuda.Stream(self.comp_device)
@@ -47,7 +46,7 @@ class DataMovementEngine:
         self.c2d_queue.put(task)
 
     def d2c_runtime(self):
-        def process_task(task: TaskD2C):
+        def process_task(task: D2C):
             torch.cuda.nvtx.range_push(f'd2c-{task.d_file_name}')
             torch.cuda.nvtx.range_push(f'1')
             d_tensor = torch.from_numpy(open_memmap(task.d_file_name))
@@ -65,7 +64,7 @@ class DataMovementEngine:
             self.d2c_queue.task_done()
 
     def c2d_runtime(self):
-        def process_task(task: TaskC2D):
+        def process_task(task: C2D):
             torch.cuda.nvtx.range_push(f'c2d-{task.d_file_name}')
 
             torch.cuda.nvtx.range_push(f'1')
@@ -105,19 +104,26 @@ class DataMovementEngine:
         self.close()
 
 @dataclass
-class TaskD2C:
+class D2C:
     d_file_name = None
     d_indices = None 
     c_tensor = None
     c_indices = None
 
-TaskC2D = TaskD2C 
+C2D = D2C 
 
 @dataclass
-class TaskG2C:
+class G2C:
     g_tensor = None
     g_indices = None
     c_tensor = None
     c_indices = None
 
-TaskC2G = TaskG2C
+C2G = G2C
+
+@dataclass(frozen=True)
+class Task:
+    C2D = C2D
+    D2C = D2C
+    G2C = G2C
+    C2G = C2G 
