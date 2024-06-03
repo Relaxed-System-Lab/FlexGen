@@ -8,10 +8,12 @@ from numpy.lib.format import open_memmap
 from threading import Thread
 from queue import Queue 
 
-import functools 
+from dataclasses import dataclass
+
 
 # project name: 
 class DataMovementEngine:
+    """asynchronously copy data between GPU/CPU & CPU/Disk"""
     def __init__(self, comp_device, single_device=True, debug_mode=True) -> None:
         
         assert torch.cuda.is_available() 
@@ -103,3 +105,21 @@ class DataMovementEngine:
     
     def __del__(self):
         self.close()
+
+@dataclass
+class TaskD2C:
+    d_file_name = None
+    d_indices = None 
+    c_tensor = None
+    c_indices = None
+
+TaskC2D = TaskD2C 
+
+@dataclass
+class TaskG2C:
+    g_tensor = None
+    g_indices = None
+    c_tensor = None
+    c_indices = None
+
+TaskC2G = TaskG2C
