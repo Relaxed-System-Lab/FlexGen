@@ -10,7 +10,7 @@ from queue import Queue
 
 from dataclasses import dataclass
 
-
+### Tasks 
 @dataclass
 class D2C:
     d_file_name: str
@@ -37,10 +37,10 @@ class Task:
     C2G = C2G 
 
 
-
+### DM Engine
 class Engine:
     """asynchronously copy data between GPU/CPU & CPU/Disk"""
-    def __init__(self, comp_device, single_device=True) -> None:
+    def __init__(self, comp_device=0, single_device=True) -> None:
         
         assert torch.cuda.is_available() 
 
@@ -141,3 +141,5 @@ class Engine:
     def __del__(self):
         self.close()
 
+### Buffers
+# layer buffer (weights, args/kwargs, output)
