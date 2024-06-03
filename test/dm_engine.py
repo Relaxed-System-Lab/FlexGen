@@ -10,11 +10,8 @@ from queue import Queue
 
 import functools 
 
-device = torch.device(0)
-device2 = torch.device(1)
-
 # project name: 
-class XEngine:
+class DataMovementEngine:
     def __init__(self, comp_device, single_device=True, debug_mode=True) -> None:
         
         assert torch.cuda.is_available() 
@@ -104,47 +101,3 @@ class XEngine:
     
     def __del__(self):
         self.close()
-
-def find_module_list(module: nn.Module):
-    def _find_module_list(module: nn.Module):
-        if isinstance(module, nn.ModuleList):
-            yield module
-        else:
-            for child in module.children():
-                yield from _find_module_list(child)
-    
-    g = _find_module_list(module)
-    try:
-        return next(iter(g))
-    except:
-        raise ValueError(f'{module.__class__.__name__} does not have a nn.ModuleList structure')
-
-
-class ToXModel:
-    def __init__(self, hf_model, ) -> None:
-        self.hf_model = hf_model 
-
-        self.layers = self.get_layers()
-
-    def get_layers(self):
-        if isinstance(self.hf_model, (OPTForCausalLM, )):
-            return find_module_list(self.hf_model)
-        else:
-            raise NotImplementedError()
-    
-    def override_layer_forward(self, i: int):
-        layer = self.layers[i]
-        old_forward = layer.forward
-
-        @functools.wraps(old_forward)
-        def new_forward(*args, **kwargs):
-            print(f'{args = }, {kwargs = }')
-            return old_forward(*args, **kwargs)
-        
-        layer.forward = new_forward
-        return layer
-
-    def to_x_layers(self):
-        for i, layer in enumerate(self.layers):
-            self.override_layer_forward(i)
-
