@@ -1,9 +1,9 @@
-.git/objects/pack/pack-989965aed6ce7957c6301cc3962b9b07fb9d2cb0.pack
-benchmark/third_party/DeepSpeed/docs/assets/images/layernorm_animation.gif
+.git/objects/pack/pack-e61841be9a1388df2d70be04bb9d7a398fd17a2a.pack
+lp/sarecomp.ipynb
 benchmark/third_party/DeepSpeed/docs/assets/images/softmax_deepspeed.gif
-benchmark/third_party/DeepSpeed/docs/assets/images/softmax_animation.gif
-benchmark/third_party/DeepSpeed/docs/assets/images/softmax_pytorch.gif
 benchmark/third_party/DeepSpeed/docs/assets/images/layernorm_deepspeed.gif
 benchmark/third_party/DeepSpeed/docs/assets/images/layernorm_pytorch.gif
+benchmark/third_party/DeepSpeed/docs/assets/images/softmax_pytorch.gif
+benchmark/third_party/DeepSpeed/docs/assets/images/softmax_animation.gif
+benchmark/third_party/DeepSpeed/docs/assets/images/layernorm_animation.gif
 docs/FlexGen-Poster.png
-lp/sarecomp.ipynb
