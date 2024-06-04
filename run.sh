@@ -13,4 +13,4 @@ watch -n 0.1 nvidia-smi
 
 find . -size +1M | sed 's|^\./||g' | cat > .gitignore 
 
-find . -size +1M | sed 's|^\./||g' | cat > .gitignore && git add . && git commit -m 'test' && git push
+find . -size +1M | sed 's|^\./||g' | cat > .gitignore && git add . && git commit -m 'vec 1.5' && git push
