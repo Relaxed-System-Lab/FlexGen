@@ -1248,5 +1248,12 @@
     "shape": [
       768
     ]
+  },
+  "lm_head.weight": {
+    "dtype": "float32",
+    "shape": [
+      50272,
+      768
+    ]
   }
 }

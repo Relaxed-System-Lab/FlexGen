@@ -8,6 +8,7 @@ benchmark/third_party/DeepSpeed/docs/assets/images/softmax_pytorch.gif
 benchmark/third_party/DeepSpeed/docs/assets/images/softmax_animation.gif
 benchmark/third_party/DeepSpeed/docs/assets/images/layernorm_animation.gif
 docs/FlexGen-Poster.png
+test/_offload/lm_head.weight.dat
 test/_offload/model.decoder.layers.2.fc2.weight.dat
 test/_offload/model.decoder.layers.7.fc2.weight.dat
 test/_offload/model.decoder.layers.7.self_attn.q_proj.weight.dat
