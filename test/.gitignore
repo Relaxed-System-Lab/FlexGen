@@ -1,3 +1,4 @@
+_weights_offload/facebook/opt-125m/torch.float16/lm_head.weight.dat
 _weights_offload/facebook/opt-125m/torch.float16/model.decoder.layers.2.fc2.weight.dat
 _weights_offload/facebook/opt-125m/torch.float16/model.decoder.layers.7.fc2.weight.dat
 _weights_offload/facebook/opt-125m/torch.float16/model.decoder.layers.7.self_attn.q_proj.weight.dat
@@ -34,6 +35,7 @@ _weights_offload/facebook/opt-125m/torch.float16/model.decoder.layers.1.fc1.weig
 _weights_offload/facebook/opt-125m/torch.float16/model.decoder.layers.0.self_attn.out_proj.weight.dat
 _weights_offload/facebook/opt-125m/torch.float16/model.decoder.layers.6.self_attn.k_proj.weight.dat
 _weights_offload/facebook/opt-125m/torch.float16/model.decoder.layers.11.self_attn.v_proj.weight.dat
+_weights_offload/facebook/opt-125m/torch.float16/model.decoder.embed_tokens.weight.dat
 _weights_offload/facebook/opt-125m/torch.float16/model.decoder.layers.9.self_attn.out_proj.weight.dat
 _weights_offload/facebook/opt-125m/torch.float16/model.decoder.layers.6.self_attn.v_proj.weight.dat
 _weights_offload/facebook/opt-125m/torch.float16/model.decoder.layers.5.fc2.weight.dat
@@ -49,6 +51,7 @@ _weights_offload/facebook/opt-125m/torch.float16/model.decoder.layers.1.self_att
 _weights_offload/facebook/opt-125m/torch.float16/model.decoder.layers.8.self_attn.v_proj.weight.dat
 _weights_offload/facebook/opt-125m/torch.float16/model.decoder.layers.4.fc1.weight.dat
 _weights_offload/facebook/opt-125m/torch.float16/model.decoder.layers.8.self_attn.out_proj.weight.dat
+_weights_offload/facebook/opt-125m/torch.float16/model.decoder.embed_positions.weight.dat
 _weights_offload/facebook/opt-125m/torch.float16/model.decoder.layers.8.self_attn.q_proj.weight.dat
 _weights_offload/facebook/opt-125m/torch.float16/model.decoder.layers.5.fc1.weight.dat
 _weights_offload/facebook/opt-125m/torch.float16/model.decoder.layers.4.fc2.weight.dat

@@ -1,4 +1,30 @@
 {
+  "model.decoder.embed_tokens.weight": {
+    "dtype": "float16",
+    "shape": [
+      50272,
+      768
+    ]
+  },
+  "model.decoder.embed_positions.weight": {
+    "dtype": "float16",
+    "shape": [
+      2050,
+      768
+    ]
+  },
+  "model.decoder.final_layer_norm.weight": {
+    "dtype": "float16",
+    "shape": [
+      768
+    ]
+  },
+  "model.decoder.final_layer_norm.bias": {
+    "dtype": "float16",
+    "shape": [
+      768
+    ]
+  },
   "model.decoder.layers.0.self_attn.k_proj.weight": {
     "dtype": "float16",
     "shape": [
@@ -1220,6 +1246,13 @@
   "model.decoder.layers.11.final_layer_norm.bias": {
     "dtype": "float16",
     "shape": [
+      768
+    ]
+  },
+  "lm_head.weight": {
+    "dtype": "float16",
+    "shape": [
+      50272,
       768
     ]
   }
