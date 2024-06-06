@@ -60,6 +60,8 @@ class Engine:
         self.c2d_queue = Queue()
         self.d2c_thread = Thread(target=self.d2c_runtime) 
         self.c2d_thread = Thread(target=self.c2d_runtime) 
+
+    def start(self):
         self.d2c_thread.start()
         self.c2d_thread.start()
 
@@ -130,7 +132,7 @@ class Engine:
             process_task(task)
             self.c2d_queue.task_done()
 
-    def close(self):
+    def stop(self):
         self.d2c_queue.put(None)
         self.c2d_queue.put(None)
         self.d2c_queue.join()
@@ -139,7 +141,7 @@ class Engine:
         self.c2d_thread.join()
     
     def __del__(self):
-        self.close()
+        self.stop()
 
 ### Buffers
 # layer buffer (weights, args/kwargs, output)
