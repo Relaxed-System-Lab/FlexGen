@@ -29,12 +29,20 @@ class G2C:
 
 C2G = G2C
 
+@dataclass
+class G2G:
+    src_tensor: None
+    src_indices: None
+    dst_tensor: None
+    dst_indices: None
+
 @dataclass(frozen=True)
 class Task:
     C2D = C2D
     D2C = D2C
     G2C = G2C
     C2G = C2G 
+    G2G = G2G
 
 
 ### DM Engine
@@ -52,6 +60,7 @@ class Engine:
             self.comp_stream = torch.cuda.Stream(self.comp_device)
             self.c2g_stream = torch.cuda.Stream(self.comp_device)
             self.g2c_stream = torch.cuda.Stream(self.comp_device)
+            self.g2g_stream = torch.cuda.Stream(self.comp_device)
         else:
             # multi devices
             raise NotImplementedError('only single device is supported, for now')
@@ -78,6 +87,10 @@ class Engine:
     def submit_g2c_task(self, task: C2G):
         with torch.cuda.stream(self.g2c_stream):
             task.c_tensor[task.c_indices].copy_(task.g_tensor[task.g_indices])
+
+    def submit_g2g_task(self, task: G2G):
+        with torch.cuda.stream(self.g2g_stream):
+            task.dst_tensor[task.dst_indices].copy_(task.src_tensor[task.src_indices])
 
     def submit_d2c_task(self, task):
         self.d2c_queue.put(task)
