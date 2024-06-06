@@ -47,7 +47,12 @@ class Task:
 
 ### DM Engine
 class Engine:
-    """asynchronously copy data between GPU/CPU & CPU/Disk"""
+    """
+    asynchronously copy data between GPU/CPU & CPU/Disk
+    1) dst.copy_(src)
+    TODO: 2) vector.push & pop
+    
+    """
     def __init__(self, comp_device=0, single_device=True) -> None:
         
         assert torch.cuda.is_available() 
