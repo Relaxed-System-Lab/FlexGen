@@ -136,6 +136,10 @@ class Vector:
         if self.rear < self.cap // 2:
             self.shrink_storage() 
 
+    def push_to_other_vec(self, vec_to_push):
+        assert self.can_do_pop_and_push(vec_to_push)
+        push_data = self.data
+        vec_to_push.push_back(push_data) 
 
     def __repr__(self) -> str:
         return f"{self.data.tolist()}"
