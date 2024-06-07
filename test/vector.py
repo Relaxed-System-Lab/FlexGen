@@ -28,7 +28,8 @@ class Vector:
         
         # init storage
         self.storage_shape = [s if d != self.dim else self.cap for d, s in enumerate(self.data_shape)] # mutable
-        self.storage = torch.zeros(self.storage_shape, dtype=self.dtype, device=self.device)
+        self.pin_memory = self.device in ['cpu', torch.device('cpu')]
+        self.storage = torch.zeros(self.storage_shape, dtype=self.dtype, device=self.device, pin_memory=self.pin_memory)
         
     @property 
     def rear(self):
@@ -71,7 +72,7 @@ class Vector:
         # change storage_shape, reallocate & copy storage
         self.cap = (self.rear + push_len) * 3 // 2
         self.storage_shape[self.dim] = self.cap
-        tmp = torch.zeros(self.storage_shape, dtype=self.dtype, device=self.device) 
+        tmp = torch.zeros(self.storage_shape, dtype=self.dtype, device=self.device, pin_memory=self.pin_memory) 
         data_indices = [slice(0, s) for s in self.data_shape]
         tmp[*data_indices].copy_(self.storage[*data_indices])
         self.storage = tmp
@@ -80,7 +81,7 @@ class Vector:
         # change storage_shape, reallocate & copy storage(data)
         self.cap = self.rear * 3 // 2
         self.storage_shape[self.dim] = self.cap
-        tmp = torch.zeros(self.storage_shape, dtype=self.dtype, device=self.device) 
+        tmp = torch.zeros(self.storage_shape, dtype=self.dtype, device=self.device, pin_memory=self.pin_memory) 
         data_indices = [slice(0, s) for s in self.data_shape]
         tmp[*data_indices].copy_(self.storage[*data_indices])
         self.storage = tmp

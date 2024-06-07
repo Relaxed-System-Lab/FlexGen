@@ -13,4 +13,4 @@ watch -n 0.1 nvidia-smi
 
 find . -size +1M | sed 's|^\./||g' | cat > .gitignore 
 
-find . -size +100k | sed 's|^\./||g' | cat > .gitignore && git add . && git commit -m 'pin memory' && git push
+find . -size +100k | sed 's|^\./||g' | cat > .gitignore && git add . && git commit -m 'vec: move to device' && git push
