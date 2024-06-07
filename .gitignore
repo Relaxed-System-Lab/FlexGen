@@ -107,6 +107,7 @@ flexgen/res.prof
 flexgen/apps/data_wrangle/utils/constants.py
 flexgen/prof.nvvp
 flexgen/prof
+test/test.ipynb
 test/_weights_offload/facebook/opt-125m/torch.float16/lm_head.weight.dat
 test/_weights_offload/facebook/opt-125m/torch.float16/model.decoder.layers.2.fc2.weight.dat
 test/_weights_offload/facebook/opt-125m/torch.float16/model.decoder.layers.7.fc2.weight.dat

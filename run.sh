@@ -13,4 +13,4 @@ watch -n 0.1 nvidia-smi
 
 find . -size +1M | sed 's|^\./||g' | cat > .gitignore 
 
-find . -size +100k | sed 's|^\./||g' | cat > .gitignore && git add . && git commit -m 'vec: test push_and_pop' && git push
+find . -size +100k | sed 's|^\./||g' | cat > .gitignore && git add . && git commit -m 'reference to layer running weights buff is implemented' && git push
