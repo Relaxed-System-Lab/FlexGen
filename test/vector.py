@@ -88,7 +88,7 @@ class Vector:
     
     @classmethod
     def from_tensor(cls, tensor: torch.Tensor, dim: int, device=None, **kwargs):
-        device = device if device is not None else tensor.device # default to tensor.dtype
+        device = device if device is not None else tensor.device # default to tensor.device
         dtype = tensor.dtype if device != 'disk' else torch_to_numpy_dtype_dict[tensor.dtype] # torch.dtype | np.dtype
         
         vec = cls(data_shape=list(tensor.shape), dtype=dtype, device=device, dim=dim, **kwargs)
