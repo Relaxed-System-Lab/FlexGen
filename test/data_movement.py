@@ -160,6 +160,3 @@ class Engine:
     
     def __del__(self):
         self.stop()
-
-### Buffers
-# layer buffer (weights, args/kwargs, output)
