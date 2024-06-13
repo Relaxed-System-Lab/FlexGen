@@ -46,7 +46,7 @@ class Task:
 
 
 ### DM Engine
-class Engine:
+class DataMovementEngine:
     """
     asynchronously copy data between GPU/CPU & CPU/Disk
     1) dst.copy_(src)
