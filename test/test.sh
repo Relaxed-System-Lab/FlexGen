@@ -36,4 +36,4 @@ sudo cp *.sh /usr/local/bin/
 
 pagecache-management.sh nsys profile -w true -t cuda,nvtx,osrt,cudnn,cublas -s cpu -o rep/nsight_report15 -f true -x true python cuda_stream.py 
 
-find . -size +100k | sed 's|^\./||g' | cat > .gitignore && git add . && git commit -m 'chunk_size, chunk_dim, chunk_num' && git push
+find . -size +100k | sed 's|^\./||g' | cat > .gitignore && git add . && git commit -m 'home v0' && git push
