@@ -29,6 +29,7 @@ s2 = torch.cuda.Stream(device=device) # c2g
 s3 = torch.cuda.Stream(device=device2)# c2g'
 s5 = torch.cuda.Stream(device=device) # g2c
 s7 = torch.cuda.Stream(device=device) # g2g
+s4 = torch.cuda.Stream(device=device) # g2d
 
 # d2c task queue thread
 d2c_task_queue = Queue()              
@@ -40,7 +41,9 @@ def d2c_func():
         x4_mmap = torch.from_numpy(open_memmap(file_name))
         torch.cuda.nvtx.range_pop() 
         torch.cuda.nvtx.range_push(f'2')
-        x4.copy_(x4_mmap)
+        with torch.cuda.stream(s4):
+            # x4_gpu.copy_(x4_mmap, non_blocking=True)
+            x4.copy_(x4_mmap, non_blocking=True)
         torch.cuda.nvtx.range_pop() 
         torch.cuda.nvtx.range_pop() 
 
@@ -120,6 +123,7 @@ x3_gpu = x3.to(device2)
 w1 = w1.to(device)
 w2_gpu = w2.to(device)
 w3_gpu = w3.to(device2)
+x4_gpu = x4.to(device)
 
 x5_gpu = x5.to(device)
 

@@ -31,15 +31,20 @@ def benchmark_func(func, number, repeat, warmup=3):
 
 
 def profile_bandwidth(path):
-    s, h = 512, 512
+    s, h = 1, 8192
     path_dir = os.path.dirname(path)
     os.makedirs(path_dir, exist_ok=True)
 
     links = [("cpu", "gpu"), ("gpu", "cpu"), ("gpu", "gpu"), ("cpu", "cpu"),
-             ("cpu", "np.memmap"), ("cpu", "safetensors"), ("np.memmap", "cpu"), ("safetensors", "cpu")]
+    ("np.memmap", "gpu", ),("gpu", "np.memmap"),
+             ("cpu", "np.memmap"), 
+            #  ("cpu", "safetensors"), 
+             ("np.memmap", "cpu"),
+            #    ("safetensors", "cpu"), 
+             ]
 
     for (dst, src) in links:
-        for b in [1, 128, 512]:
+        for b in [1, 16, 64, 128, 512, 2048, 4096, 8192]:
             if dst == "cpu":
                 dst_tensor = torch.ones((b, s, h), dtype=torch.int8, pin_memory=True)
             elif dst == "gpu":
@@ -84,7 +89,7 @@ def profile_bandwidth(path):
                 dst_tensor_[dst_indices].copy_(src_tensor_[src_indices])
 
             size = np.prod([(x.stop - x.start) / (x.step or 1) for x in dst_indices])
-            cost = np.mean(benchmark_func(func, number=5, repeat=3))
+            cost = np.mean(benchmark_func(func, number=1, repeat=1, warmup=0))
             bandwidth = size / cost / GB
 
             print(f"size: {size / MB:6.2f} MB, {src}-to-{dst} bandwidth: {bandwidth:.3f} GB/s")
