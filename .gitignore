@@ -2,9 +2,14 @@
 .git/objects/pack/pack-e61841be9a1388df2d70be04bb9d7a398fd17a2a.idx
 .git/objects/pack/pack-e61841be9a1388df2d70be04bb9d7a398fd17a2a.pack
 .git/objects/15/2d2c46cb06d57545e1876f2c6cda1c86ec3de8
+.git/objects/cd/1dffdcf99789867de5deb3099ee16e9119242e
+.git/objects/19/6f33897952836b61c0230d63bfc3195ff034f4
+.git/objects/43/f1bd36d2f5ecaacf241bdf234ace6a392aa921
 lp/sarecomp.ipynb
+lp/sarecomp-gqa8-tp1.ipynb
 lp/stage-xyz-opt30b.ipynb
 lp/stage-xyz-opt125m.ipynb
+lp/sarecomp-gqa8-tp8.ipynb
 benchmark/third_party/DeepSpeed/tests/unit/gpt2-vocab.json
 benchmark/third_party/DeepSpeed/tests/unit/gpt2-merges.txt
 benchmark/third_party/DeepSpeed/docs/assets/images/moe-nlg.png
